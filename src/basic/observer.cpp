@@ -5,11 +5,7 @@ int subscriber::subscribe(observer::Ptr obs, std::string topic) {
 }
 
 int subscriber::unsubscribe(observer::Ptr obs, std::string topic) {
-
-}
-
-int subscriber::action(void *ctx, void *user) {
-	printf("hello, here is %p\n", this);
+	return -1;
 }
 
 int observer::subscribe_accept(subscriber::Ptr sub, std::string topic) {
@@ -27,23 +23,25 @@ int observer::subscribe_accept(subscriber::Ptr sub, std::string topic) {
 	return 0;
 }
 
-int observer::create_section(std::string topic) {
+int observer::create_session(std::string topic) {
 	auto iter = _subscribers.find(topic);
 	if (iter != _subscribers.end()) {
-		poe_log(MSG_WARNING, "Observer") << "section already exist";
+		poe_log(MSG_WARNING, "Observer") << "session already exist";
 		return -1;
 	}
 	_subscribers.insert(std::pair<std::string, std::vector<subscriber::Ptr>>
 					(topic, std::vector<subscriber::Ptr>()));
 	return 0;
 }
-int observer::publish(std::string topic) {
+
+int observer::publish(std::string topic, void *ctx) {
 	auto iter = _subscribers.find(topic);
 	if (iter == _subscribers.end()) {
-		poe_log(MSG_WARNING, "Observer") << "Not exist section";
+		poe_log(MSG_WARNING, "Observer") << "Not exist session";
 		return -1;
 	}
 	for(subscriber::Ptr sub : iter->second) {
-		sub->action(NULL, NULL);
+		sub->action(ctx);
 	}
+	return 0;
 }

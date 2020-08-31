@@ -3,8 +3,7 @@
 
 #include "utils_header.hh"
 #include "observer.hh"
-
-#define MESSAGE_TERMINAL (WM_USER + 0x0001)
+#include "message.hh"
 class interceptor {
 public :
 	typedef std::shared_ptr<interceptor> Ptr;
@@ -16,13 +15,14 @@ public :
 	virtual int intercept();
 	int install_hook(int type,
 #ifdef _WIN32
-	LRESULT WINAPI(*event_handle)(int nCode, WPARAM wParam, LPARAM lParam)
+	LRESULT WINAPI(*)(int nCode, WPARAM wParam, LPARAM lParam)
 #else
 	void (*event_handle)(void *, void *)
 #endif /* _WIN32 */
 	);
-private :
+protected :
 	interceptor(){}
+private :
 	int _hook_type;
 	unsigned long _id;
 

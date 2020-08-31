@@ -7,16 +7,13 @@ class observer;
 
 class subscriber : public std::enable_shared_from_this<subscriber> {
 public :
+	friend observer;
 	typedef std::shared_ptr<subscriber> Ptr;
-/*	static Ptr createNew(void) {
-		Ptr instance = Ptr(new subscriber);
-		return instance;
-	}*/
 	virtual ~subscriber() {}
 	int subscribe(std::shared_ptr<observer> obs, std::string topic);
 	int unsubscribe(std::shared_ptr<observer> obs, std::string topic);
-	virtual int action (void *ctx, void *user) = 0;
 protected :
+	virtual int action (void *ctx) = 0;
 	subscriber() {}
 };
 
@@ -28,9 +25,9 @@ public :
 		return instance;
 	}
 	int subscribe_accept(subscriber::Ptr sub, std::string topic);
-	int create_section(std::string topic);
+	int create_session(std::string topic);
+	int publish(std::string topic, void *ctx);
 protected :
-	int publish(std::string topic);
 	observer() {}
 private :
 	std::map<std::string, std::vector<subscriber::Ptr>> _subscribers;
