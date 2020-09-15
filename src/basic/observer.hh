@@ -1,7 +1,8 @@
 #ifndef __BASIC_OBSERVER_HH
 #define __BASIC_OBSERVER_HH
 
-#include <utils_header.hh>
+#include <exception>
+#include "utils_header.hh"
 
 class observer;
 
@@ -10,27 +11,37 @@ public :
 	friend observer;
 	typedef std::shared_ptr<subscriber> Ptr;
 	virtual ~subscriber() {}
-	int subscribe(std::shared_ptr<observer> obs, std::string topic);
-	int unsubscribe(std::shared_ptr<observer> obs, std::string topic);
+	int subscribe(std::shared_ptr<observer> obs, const char * const &topic) noexcept;
+	int unsubscribe(std::shared_ptr<observer> obs, const char * const &topic) noexcept;
 protected :
-	virtual int action (void *ctx) = 0;
+	virtual int action (const char * const &topic, void *ctx) = 0;
 	subscriber() {}
 };
 
-class observer{
+class observer {
 public :
 	typedef std::shared_ptr<observer> Ptr;
 	static Ptr createNew() {
 		Ptr instance = Ptr(new observer);
 		return instance;
 	}
-	int subscribe_accept(subscriber::Ptr sub, std::string topic);
-	int create_session(std::string topic);
-	int publish(std::string topic, void *ctx);
+	int subscribe_accept(subscriber::Ptr sub, const char * const &topic);
+	int create_session(const char * const &topic);
+	int publish(const char * const &topic, void *ctx);
 protected :
 	observer() {}
 private :
 	std::map<std::string, std::vector<subscriber::Ptr>> _subscribers;
 };
 
+
+class observer_exception : public std::exception {
+public:
+	observer_exception(const char * const &reason) : _reason(reason) {}
+	const char *what() const throw() override {
+		return _reason;
+	}
+private:
+	const char *_reason;
+};
 #endif /* __BASIC_OBSERVER_HH */

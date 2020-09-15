@@ -20,6 +20,7 @@ public :
 	void (*event_handle)(void *, void *)
 #endif /* _WIN32 */
 	);
+	HANDLE get_threadID(void) {return _handle;}
 protected :
 	interceptor(){}
 private :

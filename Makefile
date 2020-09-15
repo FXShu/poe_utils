@@ -18,16 +18,18 @@ endif
 
 export CXX CFLAGS TOP PLATFORM
 
-all:prepare $(BIN)
+all:prepare
 
 prepare:
 ifeq "$(wildcard $(BIN_PATH))" ""
 	@mkdir $(BIN_PATH)
 endif
-	$(MAKE) -C $(SRC_PATH) $@
-
-$(BIN) : 
+	@$(MAKE) -C $(SRC_PATH) $@
 
 clean:
 	@rm -f *~ *.o *.d *.gcno *.gcda *.gconv $(all)
 	$(MAKE) -C src $@
+	$(MAKE) -C unit_test $@
+
+unit: prepare
+	@$(MAKE) -C unit_test

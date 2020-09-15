@@ -12,4 +12,4 @@ prepare: $(LIB)
 
 $(LIB) : $(LIB_OBJS)
 	@echo "  AR  " $@
-	@$(AR) crT $@ $<
+	@$(AR) crT $@ $^

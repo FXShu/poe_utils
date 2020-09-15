@@ -4,4 +4,4 @@
 *.a
 *.so
 *.d
-
+cscope.*

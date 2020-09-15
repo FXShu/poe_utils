@@ -10,7 +10,7 @@ enum poe_table_type {
 
 class parser {
 public:
-	static std::string get_msg(enum poe_table_type table, uint32_t enumeration);
+	static const char *get_msg(enum poe_table_type table, uint32_t enumeration);
 };
 
 #endif /* __PARSER_HH */

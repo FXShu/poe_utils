@@ -52,19 +52,22 @@ DWORD WINAPI intercept_message(void *) {
 }
 
 int interceptor::intercept() {
-	_handle = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)intercept_message,
-			NULL, 0, &_id);
-	if (!_handle) {
-		poe_log(MSG_WARNING, "Interceptor")
-		<< "Create new thread fail, error code "<< GetLastError();
-		return -1;
+	MSG message;
+	std::cout << "intercept_message" << std::endl;
+	while(GetMessage(&message, NULL, 0, 0)) {
+		if (message.message == POE_MESSAGE_TERMINAL) {
+			poe_log(MSG_DEBUG, "Interceptor")
+			<< "get terminal signal, stop intercept message";
+			break;
+		}
+		TranslateMessage(&message);
+		DispatchMessage(&message);
 	}
 	return 0;
 }
 
 LRESULT WINAPI poe_message_handle(int nCode, WPARAM wParam, LPARAM lParam) {
 	MSG *message = (MSG *)lParam;
-	//publish(parser::get_msg(message->message), NULL);
 	poe_informer->publish(parser::get_msg(poe_table_message, message->message), nullptr);
 	return CallNextHookEx(nullptr, nCode, wParam, lParam);
 }
@@ -92,12 +95,18 @@ informer::Ptr informer::init() {
 informer::informer() {
 	/* keyboard event */
 	
-	if (!install_hook(WH_KEYBOARD_LL, poe_keyboard_handle))
-		create_session(std::string(POE_KEYBOARD_EVENT));
+	if (!install_hook(WH_KEYBOARD_LL, poe_keyboard_handle)) {
+		create_session(POE_KEYBOARD_EVENT);
+		poe_log(MSG_DEBUG, "informer") << "install keyboard event hook success";
+	}
 	/* mouse event */
-	if (!install_hook(WH_MOUSE_LL, mouse_handle))
-		create_session(std::string(POE_MOUSE_EVENT));
+	if (!install_hook(WH_MOUSE_LL, mouse_handle)) {
+		create_session(POE_MOUSE_EVENT);
+		poe_log(MSG_DEBUG, "informer") << "install mouse event hook success";
+	}
 	/* message event */
-	if (!install_hook(WH_GETMESSAGE, poe_message_handle))
-		create_session(std::string(parser::get_msg(poe_table_message, POE_MESSAGE_TERMINAL)));
+	if (!install_hook(WH_GETMESSAGE, poe_message_handle)) {
+		create_session(parser::get_msg(poe_table_message, POE_MESSAGE_TERMINAL));
+		poe_log(MSG_DEBUG, "informer") << "install regular message hook success";
+	}
 }

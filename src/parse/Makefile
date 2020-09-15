@@ -1,11 +1,10 @@
-LIB=libbasic.a
+LIB=libparse.a
 
-LIB_OBJS=observer.o
-
+LIB_OBJS=parser.o
 CFLAGS += -I $(TOP)/src/utils
 include ../lib.rules
 
-prepare : $(LIB)
+prepare: $(LIB)
 
 $(LIB) : $(LIB_OBJS)
 	@echo "  AR  " $@

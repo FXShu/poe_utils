@@ -1,15 +1,15 @@
 #include "observer.hh"
 #include <stdio.h>
-int subscriber::subscribe(observer::Ptr obs, std::string topic) {
+int subscriber::subscribe(observer::Ptr obs, const char * const &topic) noexcept {
 	return obs->subscribe_accept(shared_from_this(), topic);
 }
 
-int subscriber::unsubscribe(observer::Ptr obs, std::string topic) {
+int subscriber::unsubscribe(observer::Ptr obs, const char * const &topic) noexcept {
 	return -1;
 }
 
-int observer::subscribe_accept(subscriber::Ptr sub, std::string topic) {
-	if (!sub || topic.empty()) {
+int observer::subscribe_accept(subscriber::Ptr sub, const char * const &topic) {
+	if (!sub || !topic) {
 		poe_log(MSG_WARNING, "Observer") << "Invalid parameter";
 		return -1;
 	}
@@ -23,7 +23,7 @@ int observer::subscribe_accept(subscriber::Ptr sub, std::string topic) {
 	return 0;
 }
 
-int observer::create_session(std::string topic) {
+int observer::create_session(const char * const &topic) {
 	auto iter = _subscribers.find(topic);
 	if (iter != _subscribers.end()) {
 		poe_log(MSG_WARNING, "Observer") << "session already exist";
@@ -34,14 +34,14 @@ int observer::create_session(std::string topic) {
 	return 0;
 }
 
-int observer::publish(std::string topic, void *ctx) {
+int observer::publish(const char * const &topic, void *ctx) {
 	auto iter = _subscribers.find(topic);
 	if (iter == _subscribers.end()) {
 		poe_log(MSG_WARNING, "Observer") << "Not exist session";
 		return -1;
 	}
 	for(subscriber::Ptr sub : iter->second) {
-		sub->action(ctx);
+		sub->action(topic, ctx);
 	}
 	return 0;
 }
