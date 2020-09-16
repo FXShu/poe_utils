@@ -5,6 +5,7 @@
 #include "observer.hh"
 
 #define MARCO_STATUS_BOARDCAST "macro_status_boardcast"
+#define KEYBOARD_MESSAGE_BASIC 0x0100
 struct macro_status {
 	const char *name;
 	int status;
@@ -20,7 +21,7 @@ public :
 	void set_duration(unsigned int duration) {_duration = duration;}
 protected :
 	instruction(unsigned int duration) : _duration(duration) {}
-	unsigned int _duration;
+	int _duration;
 };
 
 class keyboard_instruction : public instruction {
@@ -75,12 +76,14 @@ protected :
 class macro_passive : public subscriber, public macro {
 public :
 	typedef std::shared_ptr<macro_passive> Ptr;
-	static Ptr createNew(const char *name, observer::Ptr master) noexcept;
+	static Ptr createNew(const char *name, uint8_t hotkey,observer::Ptr master) noexcept;
 	void show(void);
 private :
-	macro_passive(const char *name, observer::Ptr master) : macro(name), _active(0) {}
+	macro_passive(const char *name, uint8_t hotkey, observer::Ptr master) :
+		macro(name), _active(0), _hotkey(hotkey) {}
 	int action (const char * const &topic, void *ctx) override;
 	int _active;
 	unsigned long _time;
+	uint8_t _hotkey;
 };
 #endif /* __MACRiO_HH */

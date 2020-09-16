@@ -1,9 +1,10 @@
 #include "macro.hh"
 #include "io.hh"
-
+#include "parser.hh"
 void keyboard_instruction::show(void) {
-	poe_log(MSG_INFO, "keyboard_instruction") << "type : "
-		<< _type << " virtual code : " << _code << " duration : " << _duration;
+	poe_log(MSG_INFO, "keyboard_instruction")
+		<< parser::get_msg(poe_table_keyboard, _type)
+		<< " "<< (char)_code << " duration : " << _duration;
 }
 
 int macro::rename(std::string name) {
@@ -43,7 +44,8 @@ int macro::replace_instruction(unsigned int order, instruction::Ptr item) {
 }
 
 #ifndef _WIN32
-macro_passive::Ptr macro_passive::createNew(const char *name, observer::Ptr master) noexcept {
+macro_passive::Ptr macro_passive::createNew(const char *name, uint8_t hotkey,
+		observer::Ptr master) : _hotkey(hotkey) noexcept {
 	macro_passive::Ptr instance;
 	if (!master) {
 		poe_log(MSG_ERROR, "Macro_passive") << "invalid parameter";
@@ -70,27 +72,30 @@ int macro_passive::action(const char * const &topic, void *ctx) {
 		return 0;
 	}
 	/* not status change notify, must be hardware input notify event. */
+	struct keyboard *keyboard = (struct keyboard *)ctx;
+	struct tagKBDLLHOOKSTRUCT *message =
+		(struct tagKBDLLHOOKSTRUCT *)keyboard->info;
 	if (_active) {
 	/* in execute status */
+		if (message->vkCode != _hotkey || 
+			keyboard->event != 0x0100)
+			return 0;
 		for (auto item : _items) {
 			if(item->action(ctx))
 				return -1;
-			Sleep(item->duration());
+			if (item->duration() < 0)
+				Sleep(item->duration());
 		}
 	} else {
 	/* in record status */
-		struct keyboard *keyboard = (struct keyboard *)ctx;
-		struct tagKBDLLHOOKSTRUCT *message =
-			(struct tagKBDLLHOOKSTRUCT *)keyboard->info;
-		/* XXX : How to record the duration of instruction? */
-		/* For windows document, the member time of tagKBDLLHOOKSTRUCT struct,
-		 * indicate the timestamp of this message, maybe we can calculate duration
-		 * by the delta between the timestamp of this message and the next.
-		 */
+		std::cout << message->vkCode << " " << message->scanCode 
+			<< " " << message->flags << " " << std::endl;
 		if (_items.size() == 0)
 			_time = message->time;
-		else
+		else {
 			_items.back()->set_duration(message->time - _time);
+			_time = message->time;
+		}
 		keyboard_instruction::Ptr item =
 			keyboard_instruction::createNew(message->vkCode,
 					keyboard->event, -1);

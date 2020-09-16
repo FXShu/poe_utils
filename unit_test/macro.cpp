@@ -13,11 +13,13 @@ loglevel_e loglevel;
 DWORD WINAPI send_terminal(void *id) {
 	Sleep(5000);
 	PostThreadMessage((DWORD)id, POE_MESSAGE_TERMINAL, 0, 0);
+	return 0;
 }
 
 int main(int argc, char **argv) {
 	try {
 		/* intercepte windows system event. */
+		Sleep(500);
 		loglevel = loglevel_e::MSG_DEBUG;
 		informer::Ptr informer = informer::init();
 		poe_log(MSG_DEBUG, "Macro test") << "address of informer " << informer;
@@ -29,7 +31,7 @@ int main(int argc, char **argv) {
 		else
 			poe_log(MSG_DEBUG, "Macro test") << "create \"macro status\" session";
 
-		macro_passive::Ptr macro = macro_passive::createNew("macro test", master);
+		macro_passive::Ptr macro = macro_passive::createNew("macro test", 0x41, master);
 		if (!macro)
 			exit(EXIT_FAILURE);
 		else
@@ -51,6 +53,16 @@ int main(int argc, char **argv) {
 			poe_log(MSG_DEBUG, "Macro test") << "start intcepte windows system message";
 //		WaitForSingleObject(informer->get_threadID(), 10000);
 		macro->show();
+
+		status = {
+			.name = "macro test",
+			.status = 1
+		};
+		if (master->publish(MARCO_STATUS_BOARDCAST, &status))
+			exit(EXIT_FAILURE);
+		poe_log(MSG_DEBUG, "Macro test") << "force \"macro test\" macro to execute status";
+		if (informer->intercept())
+			exit(EXIT_FAILURE);
 	} catch (std::exception &e) {
 		poe_log(MSG_ERROR, "macro test") << e.what();
 	}

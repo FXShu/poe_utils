@@ -84,7 +84,7 @@ LRESULT WINAPI  poe_keyboard_handle(int nCode, WPARAM wParam, LPARAM lParam) {
 
 LRESULT WINAPI mouse_handle(int nCode, WPARAM wParam, LPARAM lParam) {
 	/* TODO mouse event handle */
-	return -1;
+	return CallNextHookEx(nullptr, nCode, wParam, lParam);
 }
 
 informer::Ptr informer::init() {

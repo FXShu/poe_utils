@@ -1,3 +1,4 @@
+#include <windows.h>
 #include "macro.hh"
 #include "informer.hh"
 extern informer::Ptr poe_informer;
@@ -10,13 +11,20 @@ extern informer::Ptr poe_informer;
  */
 
 int keyboard_instruction::action(void *ctx) {
-	HWND handle = (HWND)ctx;
-	if (!PostMessage(handle, _type, _code, 0))
+	//HWND handle = (HWND)ctx;
+	HWND handle = (HWND)GetCurrentProcess();
+	if (!handle)
 		return -1;
+
+	if (!PostMessage(handle, _type, _code, 0)) {
+		poe_log(MSG_WARNING, "keyboard_instruction") << "post message fail" << GetLastError();
+		return -1;
+	}
 	return 0;
 }
 
-macro_passive::Ptr macro_passive::createNew(const char *name, observer::Ptr master) noexcept {
+macro_passive::Ptr macro_passive::createNew(const char *name, uint8_t hotkey,observer::Ptr master)
+	noexcept {
 	macro_passive::Ptr instance;
 
 	if (!master) {
@@ -25,7 +33,7 @@ macro_passive::Ptr macro_passive::createNew(const char *name, observer::Ptr mast
 	}
 
 	try {
-		instance = macro_passive::Ptr(new macro_passive(name, master));
+		instance = macro_passive::Ptr(new macro_passive(name, hotkey, master));
 		instance->subscribe(poe_informer, POE_KEYBOARD_EVENT);
 		instance->subscribe(poe_informer, POE_MOUSE_EVENT);
 		instance->subscribe(master, MARCO_STATUS_BOARDCAST);
