@@ -1,22 +1,32 @@
+#include <windows.h>
 #include "macro.hh"
 #include "informer.hh"
+#include "macro_windows_define.hh"
 extern informer::Ptr poe_informer;
-/***
- * macro_status : notify message to macro object
- * member :
- * 1. name : name of specified macro.
- * 2. status : force macro object enter to this status,
- *    zero for recording, non-zero for execute.
- */
 
 int keyboard_instruction::action(void *ctx) {
-	HWND handle = (HWND)ctx;
-	if (!PostMessage(handle, _type, _code, 0))
+	int ret;
+	HWND handle = (HWND)GetCurrentProcess();
+	if (!handle)
 		return -1;
+	switch(_type) {
+	case WM_KEYDOWN:
+		ret = PostMessage(handle, _type, _code, 0);
+		break;
+	case WM_KEYUP:
+		ret = PostMessage(handle, _type, _code,
+			KEYBOARD_PREVIOUSR_STATUS | KEYBOARD_TRANSITION_STATUS);
+		break;
+	}
+	if (!ret) {
+		poe_log(MSG_WARNING, "keyboard_instruction") << "post message fail" << GetLastError();
+		return -1;
+	}
 	return 0;
 }
 
-macro_passive::Ptr macro_passive::createNew(const char *name, observer::Ptr master) noexcept {
+macro_passive::Ptr macro_passive::createNew(const char *name, uint8_t hotkey,observer::Ptr master)
+	noexcept {
 	macro_passive::Ptr instance;
 
 	if (!master) {
@@ -25,7 +35,7 @@ macro_passive::Ptr macro_passive::createNew(const char *name, observer::Ptr mast
 	}
 
 	try {
-		instance = macro_passive::Ptr(new macro_passive(name, master));
+		instance = macro_passive::Ptr(new macro_passive(name, hotkey, master));
 		instance->subscribe(poe_informer, POE_KEYBOARD_EVENT);
 		instance->subscribe(poe_informer, POE_MOUSE_EVENT);
 		instance->subscribe(master, MARCO_STATUS_BOARDCAST);

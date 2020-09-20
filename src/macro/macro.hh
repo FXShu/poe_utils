@@ -3,8 +3,15 @@
 
 #include "utils_header.hh"
 #include "observer.hh"
-
+#ifdef _WIN32
+#include "platform/windows/macro_windows_define.hh"
+#endif
 #define MARCO_STATUS_BOARDCAST "macro_status_boardcast"
+
+/* macro flags bitmap */
+#define MACRO_FLAGS_RECORD (1u << 0)
+#define MACRO_FLAGS_ACTIVE (1u << 1)
+
 struct macro_status {
 	const char *name;
 	int status;
@@ -20,7 +27,7 @@ public :
 	void set_duration(unsigned int duration) {_duration = duration;}
 protected :
 	instruction(unsigned int duration) : _duration(duration) {}
-	unsigned int _duration;
+	int _duration;
 };
 
 class keyboard_instruction : public instruction {
@@ -61,11 +68,10 @@ protected :
 	std::string _name;
 };
 
-
 /***
  * macro_passive
  * class member :
- * 1. _active : status of this macro, zero for record, non-zero for execute.
+ * 1. flags : bitmap, see "macro flags bitmap".
  * 2. _time : the timestamp of last message arrived.
  *   it used to calculate some specific event duration like keyboard, mouse event...etc.
  * constructure parameter:
@@ -75,12 +81,14 @@ protected :
 class macro_passive : public subscriber, public macro {
 public :
 	typedef std::shared_ptr<macro_passive> Ptr;
-	static Ptr createNew(const char *name, observer::Ptr master) noexcept;
+	static Ptr createNew(const char *name, uint8_t hotkey,observer::Ptr master) noexcept;
 	void show(void);
 private :
-	macro_passive(const char *name, observer::Ptr master) : macro(name), _active(0) {}
+	macro_passive(const char *name, uint8_t hotkey, observer::Ptr master) :
+		macro(name), _flags(0), _hotkey(hotkey) {}
 	int action (const char * const &topic, void *ctx) override;
-	int _active;
+	int _flags;
 	unsigned long _time;
+	uint8_t _hotkey;
 };
 #endif /* __MACRiO_HH */
