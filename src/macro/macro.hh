@@ -83,12 +83,32 @@ public :
 	typedef std::shared_ptr<macro_passive> Ptr;
 	static Ptr createNew(const char *name, uint8_t hotkey,observer::Ptr master) noexcept;
 	void show(void);
-private :
+protected :
 	macro_passive(const char *name, uint8_t hotkey, observer::Ptr master) :
 		macro(name), _flags(0), _hotkey(hotkey) {}
-	int action (const char * const &topic, void *ctx) override;
+	virtual int action (const char * const &topic, void *ctx) override;
 	int _flags;
 	unsigned long _time;
 	uint8_t _hotkey;
+};
+
+static DWORD WINAPI loop_execute_macro(LPVOID lpParam);
+
+class macro_passive_loop : public macro_passive, std::enable_shared_from_this<macro_passive_loop> {
+friend DWORD WINAPI loop_execute_macro(LPVOID lpParam);
+public :
+	typedef std::shared_ptr<macro_passive_loop> Ptr;
+	static Ptr createNew(const char *name, uint8_t start,
+			uint8_t stop, observer::Ptr master) noexcept;
+private :
+	macro_passive_loop(const char *name, uint8_t start, uint8_t stop, observer::Ptr master) :
+		macro_passive(name, start, master), _hotkey_stop(stop),
+		_thread_id(nullptr), _status(0) {}
+	int action(const char * const &topic, void *ctx) override;
+	uint8_t _hotkey_stop;
+	uint8_t _status; 
+#ifdef _WIN32
+	HANDLE _thread_id;
+#endif
 };
 #endif /* __MACRiO_HH */
