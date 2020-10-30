@@ -31,7 +31,8 @@ int main(int argc, char **argv) {
 		else
 			poe_log(MSG_DEBUG, "Macro test") << "create \"macro status\" session";
 
-		macro_passive::Ptr macro = macro_passive::createNew("macro test", 0x41, master);
+		macro_passive_loop::Ptr macro =
+			macro_passive_loop::createNew("macro test", 0x51,0x57, master);
 		if (!macro)
 			exit(EXIT_FAILURE);
 		else
@@ -39,7 +40,7 @@ int main(int argc, char **argv) {
 		/* Set status of macro to recording */
 		macro_status status = {
 			.name = "macro test",
-			.status = 0
+			.status = MACRO_FLAGS_RECORD
 		};
 		if (master->publish(MARCO_STATUS_BOARDCAST, &status))
 			exit(EXIT_FAILURE);
@@ -47,22 +48,23 @@ int main(int argc, char **argv) {
 		unsigned long id;
 		id = GetCurrentThreadId();
 		CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)send_terminal, (void *)id, 0, &id);
+		poe_log(MSG_DEBUG, "Macro test") << "start intcepte windows system message";
+		
 		if (informer->intercept())
 			exit(EXIT_FAILURE);
-		else
-			poe_log(MSG_DEBUG, "Macro test") << "start intcepte windows system message";
-//		WaitForSingleObject(informer->get_threadID(), 10000);
 		macro->show();
-
+		/* name is nullptr for boardcast. */
 		status = {
-			.name = "macro test",
-			.status = 1
+			.name = nullptr,
+			.status = MACRO_FLAGS_ACTIVE
 		};
 		if (master->publish(MARCO_STATUS_BOARDCAST, &status))
 			exit(EXIT_FAILURE);
 		poe_log(MSG_DEBUG, "Macro test") << "force \"macro test\" macro to execute status";
-		if (informer->intercept())
+		if (informer->intercept()) {
+			poe_log(MSG_ERROR, "Informer") << "intercept message failed, exit";
 			exit(EXIT_FAILURE);
+		}
 	} catch (std::exception &e) {
 		poe_log(MSG_ERROR, "macro test") << e.what();
 	}

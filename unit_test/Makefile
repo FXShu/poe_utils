@@ -10,11 +10,14 @@ CFLAGS += -I $(TOP)/src/macro
 
 ifeq ($(PLATFORM), windows)
 	CFLAGS += -I $(TOP)/src/event/platform/windows
+	SUFFIX = .exe
 endif
+
+.PHONY: macro
 
 macro: macro.o
 	@echo "  BUILD  " $@
-	@$(CXX) $(CFLAGS) -o $@ $< -L $(LIB_PATH)event -levent -L $(LIB_PATH)macro -lmacro \
+	@$(CXX) $(CFLAGS) -o $@$(SUFFIX) $< -L $(LIB_PATH)event -levent -L $(LIB_PATH)macro -lmacro \
 		-L $(LIB_PATH)parse -l parse
 
 %.o: %.cpp

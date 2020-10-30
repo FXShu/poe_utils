@@ -3,10 +3,6 @@
 
 #include "utils_header.hh"
 
-#ifdef _WIN32
-#define KEYBOARD_MESSAGE_BASIC 0x0100
-#endif
-
 enum poe_table_type {
 	poe_table_message,
 	poe_table_keyboard,

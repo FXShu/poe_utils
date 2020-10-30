@@ -3,9 +3,16 @@
 
 #include "utils_header.hh"
 #include "observer.hh"
-
+#ifdef _WIN32
+#include "platform/windows/macro_windows_define.hh"
+#endif
 #define MARCO_STATUS_BOARDCAST "macro_status_boardcast"
-#define KEYBOARD_MESSAGE_BASIC 0x0100
+
+/* macro flags bitmap */
+#define MACRO_FLAGS_RECORD (1u << 0)
+#define MACRO_FLAGS_ACTIVE (1u << 1)
+#define MACRO_FLAGS_EXECUTE (1u << 2)
+
 struct macro_status {
 	const char *name;
 	int status;
@@ -17,10 +24,10 @@ public :
 	virtual int action(void *ctx) = 0;
 	virtual void show(void) = 0;
 	virtual ~instruction() {}
-	unsigned int duration() {return _duration;}
-	void set_duration(unsigned int duration) {_duration = duration;}
+	int duration() {return _duration;}
+	void set_duration(int duration) {_duration = duration;}
 protected :
-	instruction(unsigned int duration) : _duration(duration) {}
+	instruction(int duration) : _duration(duration) {}
 	int _duration;
 };
 
@@ -43,8 +50,14 @@ private :
 
 };
 
+enum macro_type {
+	MACRO_GENERIC,
+	MACRO_PASSIVE,
+	MACRO_PASSIVE_LOOP
+};
+
 class macro {
-public:
+public :
 	typedef std::shared_ptr<macro> Ptr;
 	static Ptr createNew(const char *name) {
 		Ptr instance = Ptr(new macro(name));
@@ -62,11 +75,10 @@ protected :
 	std::string _name;
 };
 
-
 /***
  * macro_passive
  * class member :
- * 1. _active : status of this macro, zero for record, non-zero for execute.
+ * 1. flags : bitmap, see "macro flags bitmap".
  * 2. _time : the timestamp of last message arrived.
  *   it used to calculate some specific event duration like keyboard, mouse event...etc.
  * constructure parameter:
@@ -78,12 +90,29 @@ public :
 	typedef std::shared_ptr<macro_passive> Ptr;
 	static Ptr createNew(const char *name, uint8_t hotkey,observer::Ptr master) noexcept;
 	void show(void);
-private :
+protected :
 	macro_passive(const char *name, uint8_t hotkey, observer::Ptr master) :
-		macro(name), _active(0), _hotkey(hotkey) {}
-	int action (const char * const &topic, void *ctx) override;
-	int _active;
+		macro(name), _flags(0), _hotkey(hotkey) {}
+	virtual int action (const char * const &topic, void *ctx) override;
+	int _flags;
 	unsigned long _time;
 	uint8_t _hotkey;
 };
+
+static DWORD WINAPI loop_execute_macro(LPVOID lpParam);
+
+class macro_passive_loop : public macro_passive {
+friend DWORD WINAPI loop_execute_macro(LPVOID lpParam);
+public :
+	typedef std::shared_ptr<macro_passive_loop> Ptr;
+	static Ptr createNew(const char *name, uint8_t start,
+			uint8_t stop, observer::Ptr master) noexcept;
+	virtual ~macro_passive_loop() {poe_log(MSG_DEBUG, "loop_execute_macro") << "discostructor";}
+private :
+	macro_passive_loop(const char *name, uint8_t start, uint8_t stop, observer::Ptr master) :
+		macro_passive(name, start, master), _hotkey_stop(stop) {}
+	int action(const char * const &topic, void *ctx) override;
+	uint8_t _hotkey_stop;
+};
+
 #endif /* __MACRiO_HH */

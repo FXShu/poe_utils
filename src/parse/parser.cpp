@@ -1,5 +1,5 @@
 #include "parser.hh"
-
+#include "macro.hh"
 static const char *poe_message_table[] = {
 	"POE_MESSAGE_TERMINAL"
 };

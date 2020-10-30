@@ -1,7 +1,7 @@
 CROSS=i686-w64-mingw32-
 CXX=$(CROSS)g++
 
-CFLAGS= -g -O0 -Wall -static-libgcc -static-libstdc++
+CFLAGS= -g -std=c++11 -O0 -Wall -static-libgcc -static-libstdc++
 
 BIN_PATH=$(shell pwd)/bin/
 SRC_PATH=$(shell pwd)/src/
