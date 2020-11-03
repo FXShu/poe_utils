@@ -15,7 +15,8 @@ public :
 	int unsubscribe(std::shared_ptr<observer> obs, const char * const &topic) noexcept;
 protected :
 	virtual int action (const char * const &topic, void *ctx) = 0;
-	subscriber() {}
+	std::string _name;
+	subscriber(const char *name) : _name(name) {}
 };
 
 class observer {

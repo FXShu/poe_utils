@@ -91,8 +91,8 @@ public :
 	static Ptr createNew(const char *name, uint8_t hotkey,observer::Ptr master) noexcept;
 	void show(void);
 protected :
-	macro_passive(const char *name, uint8_t hotkey, observer::Ptr master) :
-		macro(name), _flags(0), _hotkey(hotkey) {}
+	macro_passive(const char *name, uint8_t hotkey) :
+		subscriber(name), macro(name), _flags(0), _hotkey(hotkey) {}
 	virtual int action (const char * const &topic, void *ctx) override;
 	int _flags;
 	unsigned long _time;
@@ -106,12 +106,13 @@ friend DWORD WINAPI loop_execute_macro(LPVOID lpParam);
 public :
 	typedef std::shared_ptr<macro_passive_loop> Ptr;
 	static Ptr createNew(const char *name, uint8_t start,
-			uint8_t stop, observer::Ptr master) noexcept;
+			uint8_t stop, int interval, observer::Ptr master) noexcept;
 	virtual ~macro_passive_loop() {poe_log(MSG_DEBUG, "loop_execute_macro") << "discostructor";}
 private :
-	macro_passive_loop(const char *name, uint8_t start, uint8_t stop, observer::Ptr master) :
-		macro_passive(name, start, master), _hotkey_stop(stop) {}
+	macro_passive_loop(const char *name, uint8_t start, uint8_t stop, int interval) :
+		macro_passive(name, start), _interval(interval),_hotkey_stop(stop) {}
 	int action(const char * const &topic, void *ctx) override;
+	int _interval;
 	uint8_t _hotkey_stop;
 };
 

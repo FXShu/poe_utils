@@ -99,11 +99,13 @@ informer::informer() {
 		create_session(POE_KEYBOARD_EVENT);
 		poe_log(MSG_DEBUG, "informer") << "install keyboard event hook success";
 	}
+#if 0
 	/* mouse event */
 	if (!install_hook(WH_MOUSE_LL, mouse_handle)) {
 		create_session(POE_MOUSE_EVENT);
 		poe_log(MSG_DEBUG, "informer") << "install mouse event hook success";
 	}
+#endif
 	/* message event */
 	if (!install_hook(WH_GETMESSAGE, poe_message_handle)) {
 		create_session(parser::get_msg(poe_table_message, POE_MESSAGE_TERMINAL));

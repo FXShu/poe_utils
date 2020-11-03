@@ -41,6 +41,8 @@ int observer::publish(const char * const &topic, void *ctx) {
 		return -1;
 	}
 	for(subscriber::Ptr sub : iter->second) {
+		poe_log(MSG_DEBUG, "Observer") << "pubish topic \""
+			<< topic << "\" to \"" << sub->_name << "\" scubscriber";
 		sub->action(topic, ctx);
 	}
 	return 0;

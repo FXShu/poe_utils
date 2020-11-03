@@ -30,9 +30,12 @@ int main(int argc, char **argv) {
 			exit(EXIT_FAILURE);
 		else
 			poe_log(MSG_DEBUG, "Macro test") << "create \"macro status\" session";
-
+#if 1
 		macro_passive_loop::Ptr macro =
-			macro_passive_loop::createNew("macro test", 0x51,0x57, master);
+			macro_passive_loop::createNew("macro test", 'Q', 'W', 4000, master);
+#else
+		macro_passive::Ptr macro = macro_passive::createNew("macro test", 'Q', master);
+#endif
 		if (!macro)
 			exit(EXIT_FAILURE);
 		else

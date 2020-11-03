@@ -36,7 +36,7 @@ macro_passive::Ptr macro_passive::createNew(const char *name, uint8_t hotkey,obs
 	}
 
 	try {
-		instance = macro_passive::Ptr(new macro_passive(name, hotkey, master));
+		instance = macro_passive::Ptr(new macro_passive(name, hotkey));
 		instance->subscribe(poe_informer, POE_KEYBOARD_EVENT);
 		instance->subscribe(poe_informer, POE_MOUSE_EVENT);
 		instance->subscribe(master, MARCO_STATUS_BOARDCAST);
@@ -48,7 +48,7 @@ macro_passive::Ptr macro_passive::createNew(const char *name, uint8_t hotkey,obs
 }
 
 macro_passive_loop::Ptr macro_passive_loop::createNew(const char *name,
-		uint8_t start, uint8_t stop, observer::Ptr master) noexcept {
+		uint8_t start, uint8_t stop, int interval, observer::Ptr master) noexcept {
 	macro_passive_loop::Ptr instance;
 
 	if (!master) {
@@ -57,7 +57,8 @@ macro_passive_loop::Ptr macro_passive_loop::createNew(const char *name,
 	}
 
 	try {
-		instance = macro_passive_loop::Ptr(new macro_passive_loop(name, start, stop, master));
+		instance = macro_passive_loop::Ptr(
+			new macro_passive_loop(name, start, stop, interval));
 		instance->subscribe(poe_informer, POE_KEYBOARD_EVENT);
 		instance->subscribe(poe_informer, POE_MOUSE_EVENT);
 		instance->subscribe(master, MARCO_STATUS_BOARDCAST);
@@ -76,7 +77,6 @@ static DWORD WINAPI loop_execute_macro(LPVOID lpParam) {
 	macro_passive_loop *instance = reinterpret_cast<macro_passive_loop *>(lpParam);
 	for(;;) {
 		/* TODO : lock */
-		poe_log(MSG_DEBUG, "loop_execute_macro") << "looping execute";
 		if (!(instance->_flags & MACRO_FLAGS_EXECUTE))
 			break;
 		for (auto item : instance->_items) {
@@ -87,7 +87,7 @@ static DWORD WINAPI loop_execute_macro(LPVOID lpParam) {
 			if (item->duration() > 0)
 				Sleep(item->duration());
 		}
-		Sleep(1000);
+		Sleep(instance->_interval);
 	}
 	return 0;
 }
@@ -95,7 +95,7 @@ static DWORD WINAPI loop_execute_macro(LPVOID lpParam) {
 int macro_passive_loop::action(const char * const &topic, void *ctx) {
 	if (!strcmp(topic, MARCO_STATUS_BOARDCAST)) {
 		struct macro_status *status = static_cast<struct macro_status *>(ctx);
-		if (status->name && strcmp(status->name, _name.c_str())) {
+		if (status->name && strcmp(status->name, macro::_name.c_str())) {
 			_flags ^= MACRO_FLAGS_ACTIVE;
 			return 0;
 		}
@@ -106,7 +106,6 @@ int macro_passive_loop::action(const char * const &topic, void *ctx) {
 	struct keyboard *keyboard = (struct keyboard *)ctx;
 	struct tagKBDLLHOOKSTRUCT *message =
 		reinterpret_cast<struct tagKBDLLHOOKSTRUCT *>(keyboard->info);
-		poe_log(MSG_DEBUG, "macro_passive_loop::action") << _flags;
 	if ((_flags & MACRO_FLAGS_ACTIVE) && keyboard->event == KEYBOARD_MESSAGE_KEYDOWN) {
 		if ((message->vkCode == _hotkey) && !(_flags & MACRO_FLAGS_EXECUTE)) {
 			_flags |= MACRO_FLAGS_EXECUTE;

@@ -39,48 +39,10 @@ int macro::replace_instruction(unsigned int order, instruction::Ptr item) {
 	return 0;
 }
 
-#ifndef _WIN32
-macro_passive::Ptr macro_passive::createNew(const char *name, uint8_t hotkey,
-		observer::Ptr master) : _hotkey(hotkey) noexcept {
-	macro_passive::Ptr instance;
-	if (!master) {
-		poe_log(MSG_ERROR, "Macro_passive") << "invalid parameter";
-		return nullptr;
-	}
-	try {
-		instance = macro_passive::Ptr(new macro_passive(name, master));
-		instance->subscribe(master, MARCO_STATUS_BOARDCAST);
-	} catch (observer_exception &e) {
-		poe_log(MSG_ERROR, "Macro_passive") << e.what();
-		return nullptr;
-	}
-
-	return instance;
-}
-
-static macro_passive_loop::Ptr createNew(const char *name, uint8_t start, uint8_t stop,
-		observer::Ptr master) : _hotkey_stop(stop) noexcept {
-	macro_passive_loop::Ptr instance;
-	if (!master) {
-		poe_log(MSG_ERROR, "Macro_passive") << "invalid parameter";
-		return nullptr;
-	}
-	try {
-		instance = macro_passive_loop::Ptr(new macro_passive_loop(name, master, start));
-		instance->subscribe(master, MARCO_STATUS_BOARDCAST);
-	} catch (observer_exception &e) {
-		poe_log(MSG_ERROR, "Macro_passive") << e.what();
-		return nullptr;
-	}
-
-	return instance;
-}
-#endif
-
 int macro_passive::action(const char * const &topic, void *ctx) {
 	if (!strcmp(topic, MARCO_STATUS_BOARDCAST)) {
 		struct macro_status *status = (struct macro_status *)ctx;
-		if (status->name && strcmp(status->name, _name.c_str())) {
+		if (status->name && strcmp(status->name, macro::_name.c_str())) {
 			/* other macro, igonre */
 			return 0;
 		}
@@ -99,7 +61,7 @@ int macro_passive::action(const char * const &topic, void *ctx) {
 		for (auto item : _items) {
 			if(item->action(ctx))
 				return -1;
-			if (item->duration() < 0)
+			if (item->duration() > 0)
 				Sleep(item->duration());
 		}
 	} else if (_flags & MACRO_FLAGS_RECORD){
