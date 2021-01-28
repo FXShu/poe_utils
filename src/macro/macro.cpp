@@ -1,3 +1,4 @@
+#include <boost/property_tree/ptree.hpp>
 #include "macro.hh"
 #include "io.hh"
 #include "parser.hh"
@@ -5,6 +6,13 @@ void keyboard_instruction::show(void) {
 	poe_log(MSG_INFO, "keyboard_instruction")
 		<< parser::get_msg(poe_table_keyboard, _type)
 		<< " "<< (char)_code << " duration : " << _duration;
+}
+
+void keyboard_instruction::descript(boost::property_tree::ptree *ptree) {
+	ptree->put("type", INSTRUCTION_TYPE_KEYBOARD);
+	ptree->put("event", _type);
+	ptree->put("code", (char)_code);
+	ptree->put("duration", _duration);
 }
 
 int macro::rename(std::string name) {
@@ -37,6 +45,18 @@ int macro::replace_instruction(unsigned int order, instruction::Ptr item) {
 	}
 	_items[order] = item;
 	return 0;
+}
+
+void macro::statistic(boost::property_tree::ptree *tree) {
+	tree->put("type", MACRO_GENERIC);
+	tree->put("name", _name);
+	boost::property_tree::ptree child;
+	for (auto item : _items) {
+		boost::property_tree::ptree description;
+		item->descript(&description);
+		child.push_back(std::make_pair("", description));
+	}
+	tree->put_child("instruction", child);
 }
 
 int macro_passive::action(const char * const &topic, void *ctx) {
@@ -88,4 +108,31 @@ void macro_passive::show(void) {
 	for (auto item : _items) {
 		item->show();
 	}
+}
+
+void macro_passive::statistic(boost::property_tree::ptree *tree) {
+	tree->put("type", MACRO_PASSIVE);
+	tree->put("name", macro::_name);
+	tree->put("hotkey", (char)_hotkey);
+	boost::property_tree::ptree child;
+	for (auto item : _items) {
+		boost::property_tree::ptree description;
+		item->descript(&description);
+		child.push_back(std::make_pair("", description));
+	}
+	tree->put_child("instruction", child);
+}
+
+void macro_passive_loop::statistic(boost::property_tree::ptree *tree) {
+	tree->put("type", MACRO_PASSIVE_LOOP);
+	tree->put("name", macro::_name);
+	tree->put("hotkey", (char)_hotkey);
+	tree->put("execute_interval", _interval);
+	boost::property_tree::ptree child;
+	for (auto item : _items) {
+		boost::property_tree::ptree description;
+		item->descript(&description);
+		child.push_back(std::make_pair("", description));
+	}
+	tree->put_child("instruction", child);
 }

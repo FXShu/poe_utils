@@ -69,7 +69,7 @@ macro_passive_loop::Ptr macro_passive_loop::createNew(const char *name,
 	return instance;
 }
 
-static DWORD WINAPI loop_execute_macro(LPVOID lpParam) {
+DWORD WINAPI loop_execute_macro(LPVOID lpParam) {
 	if (!lpParam) {
 		poe_log(MSG_ERROR, "loop_execute_macro") << "invalid parameter";
 		return -1;

@@ -1,4 +1,4 @@
-item= macro
+item= macro management
 LIB_PATH=$(shell pwd)/../src/
 all: $(item)
 
@@ -6,7 +6,9 @@ CFLAGS += -I $(TOP)/src/utils
 CFLAGS += -I $(TOP)/src/basic
 CFLAGS += -I $(TOP)/src/event
 CFLAGS += -I $(TOP)/src/macro
+CFLAGS += -I $(TOP)/src/management
 
+DLFLAGS += -Wl,-Bstatic -lstdc++ -lpthread -Wl,-Bdynamic
 
 ifeq ($(PLATFORM), windows)
 	CFLAGS += -I $(TOP)/src/event/platform/windows
@@ -14,11 +16,17 @@ ifeq ($(PLATFORM), windows)
 endif
 
 .PHONY: macro
+.PHONY: management
 
 macro: macro.o
 	@echo "  BUILD  " $@
 	@$(CXX) $(CFLAGS) -o $@$(SUFFIX) $< -L $(LIB_PATH)event -levent -L $(LIB_PATH)macro -lmacro \
-		-L $(LIB_PATH)parse -l parse
+		-L $(LIB_PATH)parse -l parse $(DLFLAGS)
+
+management: management.o
+	@echo "  BUILD  " $@
+	@$(CXX) $(CFLAGS) -o $@$(SUFFIX) $< -L $(LIB_PATH)event -levent -L $(LIB_PATH)macro -lmacro \
+		-L $(LIB_PATH)parse -l parse -L $(LIB_PATH)management -l manage $(DLFLAGS)
 
 %.o: %.cpp
 	@echo "  CXX " $<

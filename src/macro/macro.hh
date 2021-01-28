@@ -1,6 +1,6 @@
 #ifndef __MACRO_HH
 #define __MACRO_HH
-
+#include <boost/property_tree/ptree.hpp>
 #include "utils_header.hh"
 #include "observer.hh"
 #ifdef _WIN32
@@ -12,6 +12,17 @@
 #define MACRO_FLAGS_RECORD (1u << 0)
 #define MACRO_FLAGS_ACTIVE (1u << 1)
 #define MACRO_FLAGS_EXECUTE (1u << 2)
+
+enum macro_type {
+	MACRO_GENERIC,
+	MACRO_PASSIVE,
+	MACRO_PASSIVE_LOOP
+};
+
+enum instruction_type {
+	INSTRUCTION_TYPE_KEYBOARD,
+	INSTRUCTION_TYPE_MAXIMUM,
+};
 
 struct macro_status {
 	const char *name;
@@ -26,6 +37,7 @@ public :
 	virtual ~instruction() {}
 	int duration() {return _duration;}
 	void set_duration(int duration) {_duration = duration;}
+	virtual void descript(boost::property_tree::ptree *ptree) = 0;
 protected :
 	instruction(int duration) : _duration(duration) {}
 	int _duration;
@@ -41,6 +53,7 @@ public :
 	}
 	int action(void *ctx) override;
 	void show(void) override;
+	void descript(boost::property_tree::ptree *ptree) override;
 private :
 	keyboard_instruction(unsigned int virtual_code,
 		unsigned int type,unsigned int duration) : instruction(duration), 
@@ -48,12 +61,6 @@ private :
 	unsigned int _type;
 	unsigned int _code;
 
-};
-
-enum macro_type {
-	MACRO_GENERIC,
-	MACRO_PASSIVE,
-	MACRO_PASSIVE_LOOP
 };
 
 class macro {
@@ -65,10 +72,13 @@ public :
 	}
 	virtual ~macro() {}
 	int rename(std::string);
+	std::string getname(void) {
+		return _name;
+	}
 	int add_instruction(instruction::Ptr item);
 	int remove_instruction(unsigned int order);
 	int replace_instruction(unsigned int order, instruction::Ptr item);
-
+	virtual void statistic(boost::property_tree::ptree *tree);
 protected :
 	macro(const char *name) : _name(name) {}
 	std::vector<instruction::Ptr> _items;
@@ -94,12 +104,13 @@ protected :
 	macro_passive(const char *name, uint8_t hotkey) :
 		subscriber(name), macro(name), _flags(0), _hotkey(hotkey) {}
 	virtual int action (const char * const &topic, void *ctx) override;
+	virtual void statistic(boost::property_tree::ptree *tree) override;
 	int _flags;
 	unsigned long _time;
 	uint8_t _hotkey;
 };
 
-static DWORD WINAPI loop_execute_macro(LPVOID lpParam);
+DWORD WINAPI loop_execute_macro(LPVOID lpParam);
 
 class macro_passive_loop : public macro_passive {
 friend DWORD WINAPI loop_execute_macro(LPVOID lpParam);
@@ -112,6 +123,7 @@ private :
 	macro_passive_loop(const char *name, uint8_t start, uint8_t stop, int interval) :
 		macro_passive(name, start), _interval(interval),_hotkey_stop(stop) {}
 	int action(const char * const &topic, void *ctx) override;
+	void statistic(boost::property_tree::ptree *tree) override;
 	int _interval;
 	uint8_t _hotkey_stop;
 };
