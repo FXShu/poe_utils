@@ -1,7 +1,13 @@
 #include "observer.hh"
 #include <stdio.h>
 int subscriber::subscribe(observer::Ptr obs, const char * const &topic) noexcept {
-	return obs->subscribe_accept(shared_from_this(), topic);
+	try {
+		return obs->subscribe_accept(shared_from_this(), topic);
+	} catch (observer_exception &e) {
+		poe_log_fn(MSG_WARNING, "subscriber", __func__) << e.what() << ": " << topic;
+		return -1;
+	}
+	return 0;
 }
 
 int subscriber::unsubscribe(observer::Ptr obs, const char * const &topic) noexcept {
@@ -15,7 +21,6 @@ int observer::subscribe_accept(subscriber::Ptr sub, const char * const &topic) {
 	}
 	auto iter = _subscribers.find(topic);
 	if (iter == _subscribers.end()) {
-		poe_log(MSG_WARNING, "Observer") << "Invalid topic";
 		throw observer_exception("No topic found");
 	}
 

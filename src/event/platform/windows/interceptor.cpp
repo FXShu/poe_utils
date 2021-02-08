@@ -68,7 +68,7 @@ int interceptor::intercept() {
 
 LRESULT WINAPI poe_message_handle(int nCode, WPARAM wParam, LPARAM lParam) {
 	MSG *message = (MSG *)lParam;
-	poe_informer->publish(parser::get_msg(poe_table_message, message->message), wParam);
+	poe_informer->publish(parser::get_msg(poe_table_message, message->message), message);
 	return CallNextHookEx(nullptr, nCode, wParam, lParam);
 }
 

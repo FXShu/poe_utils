@@ -30,6 +30,20 @@ public:
 		}
 		_buffer << "[" << module << "]";
 	}
+	logIt(std::string module, std::string func, loglevel_e _log = MSG_ERROR) {
+		switch(_log) {
+		case MSG_ERROR:
+			_buffer << RED << "[ ERROR ] ";
+			break;
+		case MSG_WARNING:
+			_buffer << YOLLOW << "[WARNING] ";
+			break;
+		default:
+			_buffer << "[MESSAGE] ";
+			break;
+		}
+		_buffer << "[" << module << "]" << "[" << func << "]";
+	}
 	template <typename T>
 	logIt & operator<<(T const &value) {
 		_buffer << value;
@@ -48,4 +62,8 @@ extern loglevel_e loglevel;
 #define poe_log(level, module) \
 	if (level > loglevel); \
 	else logIt(module, level)
+
+#define poe_log_fn(level, module, func) \
+	if (level > loglevel); \
+	else logIt(module, func,level)
 #endif /* __UTILS_LOG_HH */

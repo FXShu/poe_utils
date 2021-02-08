@@ -59,6 +59,17 @@ void macro::statistic(boost::property_tree::ptree *tree) {
 	tree->put_child("instruction", child);
 }
 
+int macro_passive::record(instruction::Ptr item, unsigned long time) {
+	if (_items.size() == 0) {
+		_time = time;
+	} else {
+		_items.back()->set_duration(time - _time);
+		_time = time;
+	}
+	add_instruction(item);
+	return 0;
+}
+
 int macro_passive::action(const char * const &topic, void *ctx) {
 	if (!strcmp(topic, MARCO_STATUS_BOARDCAST)) {
 		struct macro_status *status = (struct macro_status *)ctx;
@@ -86,16 +97,9 @@ int macro_passive::action(const char * const &topic, void *ctx) {
 		}
 	} else if (_flags & MACRO_FLAGS_RECORD){
 	/* in record status */
-		if (_items.size() == 0)
-			_time = message->time;
-		else {
-			_items.back()->set_duration(message->time - _time);
-			_time = message->time;
-		}
 		keyboard_instruction::Ptr item =
-			keyboard_instruction::createNew(message->vkCode,
-					keyboard->event, -1);
-		add_instruction(item);
+			keyboard_instruction::createNew(message->vkCode, keyboard->event, -1);
+		record(item, message->time);
 	}
 	return 0;
 }

@@ -1,4 +1,4 @@
-item= macro management
+item= macro management macro_flask
 LIB_PATH=$(shell pwd)/../src/
 all: $(item)
 
@@ -17,6 +17,7 @@ endif
 
 .PHONY: macro
 .PHONY: management
+.PHONY: macro_flask
 
 macro: macro.o
 	@echo "  BUILD  " $@
@@ -27,6 +28,11 @@ management: management.o
 	@echo "  BUILD  " $@
 	@$(CXX) $(CFLAGS) -o $@$(SUFFIX) $< -L $(LIB_PATH)event -levent -L $(LIB_PATH)macro -lmacro \
 		-L $(LIB_PATH)parse -l parse -L $(LIB_PATH)management -l manage $(DLFLAGS)
+
+macro_flask: macro_flask.o
+	@echo "  BUILD  " $@
+	@$(CXX) $(CFLAGS) -o $@$(SUFFIX) $< -L $(LIB_PATH)event -levent -L $(LIB_PATH)macro -lmacro \
+		-L $(LIB_PATH)parse -l parse $(DLFLAGS)
 
 %.o: %.cpp
 	@echo "  CXX " $<
