@@ -68,7 +68,7 @@ int interceptor::intercept() {
 
 LRESULT WINAPI poe_message_handle(int nCode, WPARAM wParam, LPARAM lParam) {
 	MSG *message = (MSG *)lParam;
-	poe_informer->publish(parser::get_msg(poe_table_message, message->message), nullptr);
+	poe_informer->publish(parser::get_msg(poe_table_message, message->message), wParam);
 	return CallNextHookEx(nullptr, nCode, wParam, lParam);
 }
 
@@ -109,6 +109,7 @@ informer::informer() {
 	/* message event */
 	if (!install_hook(WH_GETMESSAGE, poe_message_handle)) {
 		create_session(parser::get_msg(poe_table_message, POE_MESSAGE_TERMINAL));
+		create_session(parser::get_msg(poe_table_message, POE_MESSAGE_CMD));
 		poe_log(MSG_DEBUG, "informer") << "install regular message hook success";
 	}
 }

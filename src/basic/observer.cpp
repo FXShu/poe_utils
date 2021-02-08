@@ -16,7 +16,7 @@ int observer::subscribe_accept(subscriber::Ptr sub, const char * const &topic) {
 	auto iter = _subscribers.find(topic);
 	if (iter == _subscribers.end()) {
 		poe_log(MSG_WARNING, "Observer") << "Invalid topic";
-		return -1;
+		throw observer_exception("No topic found");
 	}
 
 	iter->second.push_back(sub);

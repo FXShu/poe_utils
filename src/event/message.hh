@@ -9,8 +9,9 @@
 /* Those messge should be send from control center. */
 #ifdef _WIN32
 enum {
-	POE_MESSAGE_TERMINAL  = (WM_USER + 0x0001),
-	POE_MESSAGE_MAXIMUN
+	POE_MESSAGE_TERMINAL	= (WM_USER + 0x0001),
+	POE_MESSAGE_CMD,
+	POE_MESSAGE_MAXIMUN,
 };
 #endif /* _WIN32 */
 

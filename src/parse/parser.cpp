@@ -1,7 +1,8 @@
 #include "parser.hh"
 #include "macro.hh"
 static const char *poe_message_table[] = {
-	"POE_MESSAGE_TERMINAL"
+	"TERMINAL",
+	"COMMAND"
 };
 
 static const char *poe_keyboard_message_table[] = {
