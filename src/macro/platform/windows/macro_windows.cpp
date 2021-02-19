@@ -14,7 +14,6 @@ int keyboard_instruction::action(void *ctx) {
 		return -1;
 	switch(_type) {
 	case WM_KEYDOWN:
-		poe_log_fn(MSG_DEBUG, "keyboard_instruction", __func__) << "post keyboard event " << (char)_code;
 		ret = PostMessage(handle, _type, _code, 0);
 		break;
 	case WM_KEYUP:
@@ -201,12 +200,21 @@ void macro_flask::remove_flask(const char *name) {
 }
 
 DWORD WINAPI loop_execute_flask_macro(LPVOID lpParam) {
-	poe_log(MSG_DEBUG, __func__) << "start execute loop macro";
 	if (!lpParam) {
 		poe_log(MSG_ERROR, "loop_execute_macro") << "invalid parameter";
 		return -1;
 	}
 	macro_flask *instance = reinterpret_cast<macro_flask *>(lpParam);
+	/* execute instructation once at first start */
+	for (auto item : instance->_items) {
+		try {
+			flask_instruction *flask = dynamic_cast<flask_instruction *>(item.get());
+			flask->action(nullptr);
+			flask->multiple_reset();
+		} catch (std::bad_cast) {
+			poe_log_fn(MSG_WARNING, "macro_flask", __func__) << "dynamic cast fail";
+		}
+	}
 	for(;;) {
 		/* TODO : lock */
 		if (!(instance->_flags & MACRO_FLAGS_EXECUTE))
@@ -215,7 +223,6 @@ DWORD WINAPI loop_execute_flask_macro(LPVOID lpParam) {
 			try {
 				flask_instruction *flask = dynamic_cast<flask_instruction *>(item.get());
 				flask->multiple_decrease();
-				poe_log_fn(MSG_DEBUG, "flask", __func__) << "flask \"" << flask->get_name() << "\" remain : " << flask->multiple_get();
 				if (!flask->multiple_get()) {
 					flask->action(nullptr);
 					flask->multiple_reset();

@@ -1,6 +1,6 @@
 LIB=libmacro.a
 
-LIB_OBJS=macro.o platform/$(PLATFORM)/macro_$(PLATFORM).o
+LIB_OBJS=macro.o macro_factory.o platform/$(PLATFORM)/macro_$(PLATFORM).o
 
 CFLAGS += -I $(TOP)/src/utils
 CFLAGS += -I $(TOP)/src/basic
@@ -16,5 +16,5 @@ include ../lib.rules
 prepare : $(LIB)
 
 $(LIB) : $(LIB_OBJS)
-	@echo "  AR " $@
+	@printf '  %-10s  %s\n' "AR" $@
 	@$(AR) crT $@ $^ $(TOP)/src/basic/libbasic.a

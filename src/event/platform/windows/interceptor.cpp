@@ -53,7 +53,6 @@ DWORD WINAPI intercept_message(void *) {
 
 int interceptor::intercept() {
 	MSG message;
-	std::cout << "intercept_message" << std::endl;
 	while(GetMessage(&message, NULL, 0, 0)) {
 		if (message.message == POE_MESSAGE_TERMINAL) {
 			poe_log(MSG_DEBUG, "Interceptor")

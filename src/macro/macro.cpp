@@ -15,6 +15,13 @@ void keyboard_instruction::descript(boost::property_tree::ptree *ptree) {
 	ptree->put("duration", _duration);
 }
 
+void flask_instruction::descript(boost::property_tree::ptree *ptree) {
+	ptree->put("name", _name);
+	ptree->put("event", _type);
+	ptree->put("code", (char)_code);
+	ptree->put("duration", _duration);
+}
+
 int macro::rename(std::string name) {
 	if (name.empty()) {
 		poe_log(MSG_WARNING, "Macro") << "Inavliad parameter";
@@ -131,7 +138,23 @@ void macro_passive_loop::statistic(boost::property_tree::ptree *tree) {
 	tree->put("type", MACRO_PASSIVE_LOOP);
 	tree->put("name", macro::_name);
 	tree->put("hotkey", (char)_hotkey);
+	tree->put("hotkey_stop", (char)_hotkey_stop);
 	tree->put("execute_interval", _interval);
+	boost::property_tree::ptree child;
+	for (auto item : _items) {
+		boost::property_tree::ptree description;
+		item->descript(&description);
+		child.push_back(std::make_pair("", description));
+	}
+	tree->put_child("instruction", child);
+}
+
+void macro_flask::statistic(boost::property_tree::ptree *tree) {
+	tree->put("type", MACRO_FLASK);
+	tree->put("name", macro::_name);
+	tree->put("hotkey", (char)_hotkey);
+	tree->put("hotkey_stop", (char)_hotkey_stop);
+	tree->put("GCD", _interval);
 	boost::property_tree::ptree child;
 	for (auto item : _items) {
 		boost::property_tree::ptree description;

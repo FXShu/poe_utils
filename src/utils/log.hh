@@ -7,7 +7,7 @@
 #define NONE "\033[m"
 
 enum loglevel_e {
-	MSG_ERROR,
+	MSG_ERROR = 0,
 	MSG_WARNING,
 	MSG_INFO,
 	MSG_DEBUG,

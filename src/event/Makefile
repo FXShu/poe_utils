@@ -11,5 +11,5 @@ include ../lib.rules
 prepare: $(LIB)
 
 $(LIB) : $(LIB_OBJS)
-	@echo "  AR  " $@
+	@printf '  %-10s  %s\n' "AR" $@
 	@$(AR) crT $@ $^

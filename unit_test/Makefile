@@ -1,6 +1,5 @@
 item= macro management macro_flask
 LIB_PATH=$(shell pwd)/../src/
-all: $(item)
 
 CFLAGS += -I $(TOP)/src/utils
 CFLAGS += -I $(TOP)/src/basic
@@ -19,23 +18,26 @@ endif
 .PHONY: management
 .PHONY: macro_flask
 
+all: $(item)
+	mv $(addsuffix .exe, $?) $(UNIT_TEST_BIN_PATH)
+
 macro: macro.o
-	@echo "  BUILD  " $@
+	@printf '  %-10s  %s\n' "BUILD" $@
 	@$(CXX) $(CFLAGS) -o $@$(SUFFIX) $< -L $(LIB_PATH)event -levent -L $(LIB_PATH)macro -lmacro \
 		-L $(LIB_PATH)parse -l parse $(DLFLAGS)
 
 management: management.o
-	@echo "  BUILD  " $@
-	@$(CXX) $(CFLAGS) -o $@$(SUFFIX) $< -L $(LIB_PATH)event -levent -L $(LIB_PATH)macro -lmacro \
-		-L $(LIB_PATH)parse -l parse -L $(LIB_PATH)management -l manage $(DLFLAGS)
+	@printf '  %-10s  %s\n' "BUILD" $@
+	@$(CXX) $(CFLAGS) -o $@$(SUFFIX) $< -L $(LIB_PATH)event -levent \
+		-L $(LIB_PATH)parse -l parse -L $(LIB_PATH)management -l manage -L $(LIB_PATH)macro -lmacro $(DLFLAGS)
 
 macro_flask: macro_flask.o
-	@echo "  BUILD  " $@
+	@printf '  %-10s  %s\n' "BUILD" $@
 	@$(CXX) $(CFLAGS) -o $@$(SUFFIX) $< -L $(LIB_PATH)event -levent -L $(LIB_PATH)macro -lmacro \
 		-L $(LIB_PATH)parse -l parse $(DLFLAGS)
 
 %.o: %.cpp
-	@echo "  CXX " $<
+	@printf '  %-10s  %s\n' "CXX" $@
 	@$(CXX) -c -o $@ $(CFLAGS) $<
 
 clean:

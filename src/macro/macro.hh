@@ -16,7 +16,8 @@
 enum macro_type {
 	MACRO_GENERIC,
 	MACRO_PASSIVE,
-	MACRO_PASSIVE_LOOP
+	MACRO_PASSIVE_LOOP,
+	MACRO_FLASK,
 };
 
 enum instruction_type {
@@ -52,7 +53,7 @@ public :
 	}
 	virtual int action(void *ctx) override;
 	void show(void) override;
-	void descript(boost::property_tree::ptree *ptree) override;
+	virtual void descript(boost::property_tree::ptree *ptree) override;
 protected :
 	keyboard_instruction(unsigned int virtual_code,
 		unsigned int type,unsigned int duration) : instruction(duration), 
@@ -86,6 +87,7 @@ public:
 		return _name;
 	}
 	int action(void *ctx) override;
+	void descript(boost::property_tree::ptree *ptree) override;
 private:
 	flask_instruction(const char *name, unsigned int code,
 		unsigned int type, unsigned int duration) :
@@ -158,7 +160,7 @@ protected :
 	virtual int action(const char * const &topic, void *ctx) override;
 	virtual int execute(void) noexcept;
 	virtual int stop(void) noexcept;
-	void statistic(boost::property_tree::ptree *tree) override;
+	virtual void statistic(boost::property_tree::ptree *tree) override;
 	int _interval;
 	uint8_t _hotkey_stop;
 	uint8_t _switch;
@@ -172,6 +174,7 @@ public :
 		uint8_t stop, observer::Ptr master) noexcept;
 	void add_flask(const char *name, unsigned int code, int duration);
 	void remove_flask(const char *name);
+	void statistic(boost::property_tree::ptree *tree) override;
 private :
 	macro_flask(const char *name, uint8_t start, uint8_t stop) :
 		macro_passive_loop(name, start, stop, -1) {}
