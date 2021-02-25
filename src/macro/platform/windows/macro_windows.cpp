@@ -4,6 +4,7 @@
 #include "macro.hh"
 #include "informer.hh"
 #include "macro_windows_define.hh"
+#include "windows_timer.hh"
 #include "io.hh"
 extern informer::Ptr poe_informer;
 
@@ -83,44 +84,37 @@ macro_passive_loop::Ptr macro_passive_loop::createNew(const char *name,
 	return instance;
 }
 
-DWORD WINAPI loop_execute_macro(LPVOID lpParam) {
-	if (!lpParam) {
-		poe_log(MSG_ERROR, "loop_execute_macro") << "invalid parameter";
-		return -1;
-	} 
-	macro_passive_loop *instance = reinterpret_cast<macro_passive_loop *>(lpParam);
-	for(;;) {
-		/* TODO : lock */
-		if (!(instance->_flags & MACRO_FLAGS_EXECUTE))
-			break;
-		for (auto item : instance->_items) {
-			if (item->action(nullptr)) {
-				poe_log(MSG_WARNING, "loop_execute_macro") << "command execute fail";
-				return -1;
-			}
-			if (item->duration() > 0)
-				Sleep(item->duration());
-		}
-		Sleep(instance->_interval);
+int macro_passive_loop::execute(void) {
+	if (_flags & MACRO_FLAGS_EXECUTE) {
+		poe_log_fn(MSG_INFO, "MACRO_PASSIVE_LOOP", __func__)
+			<< "macro instance already execute";
+		return 0;
+	}
+	_flags |= MACRO_FLAGS_EXECUTE;
+	_timer_id = poe_timer::add_timer(
+		new poe_timer::ClassCallback<macro_passive_loop>(
+			this, &macro_passive_loop::_timer_cb),
+		_interval);
+	if (!_timer_id) {
+		throw windows_timer_exception(GetLastError());
 	}
 	return 0;
 }
 
-int macro_passive_loop::execute(void) noexcept {
-	try {
-		_flags |= MACRO_FLAGS_EXECUTE;
-		CreateThread(nullptr, 0, loop_execute_macro, shared_from_this().get(), 0, nullptr);
-	} catch (std::exception &e) {
-		poe_log_fn(MSG_WARNING, "macr_passive_loop", __func__) << e.what();
-	}
-	return 0;
-}
-
-int macro_passive_loop::stop(void) noexcept {
-	poe_log_fn(MSG_DEBUG, "macro_passive_loop", __func__) << "looping macro: "
-		<<  macro::getname() << " turn off";
+int macro_passive_loop::stop(void) {
 	_flags &= ~MACRO_FLAGS_EXECUTE;
+	poe_timer::del_timer(_timer_id);
 	return 0;
+}
+
+void macro_passive_loop::_timer_cb(long unsigned int dwTime) {
+	for (auto item : _items) {
+		if (item->action(nullptr)) {
+			poe_log(MSG_WARNING, "loop_execute_macro") << "command execute fail";
+		}
+		if (item->duration() > 0)
+			Sleep(item->duration());
+	}
 }
 
 int macro_passive_loop::action(const char * const &topic, void *ctx) {
@@ -139,13 +133,13 @@ int macro_passive_loop::action(const char * const &topic, void *ctx) {
 		reinterpret_cast<struct tagKBDLLHOOKSTRUCT *>(keyboard->info);
 	if ((_flags & MACRO_FLAGS_ACTIVE) && keyboard->event == KEYBOARD_MESSAGE_KEYDOWN) {
 		if (_hotkey == _hotkey_stop && message->vkCode == _hotkey) {
-			if (!_switch && !(_flags & MACRO_FLAGS_EXECUTE))
+			if (!_switch)
 				execute();
 			else
 				stop();
 			_switch = !_switch;
 		} else {
-			if ((message->vkCode == _hotkey) && !(_flags & MACRO_FLAGS_EXECUTE))
+			if ((message->vkCode == _hotkey))
 				execute();
 			else if (message->vkCode == _hotkey_stop)
 				stop();
@@ -199,42 +193,6 @@ void macro_flask::remove_flask(const char *name) {
 	macro::remove_instruction(index);
 }
 
-DWORD WINAPI loop_execute_flask_macro(LPVOID lpParam) {
-	if (!lpParam) {
-		poe_log(MSG_ERROR, "loop_execute_macro") << "invalid parameter";
-		return -1;
-	}
-	macro_flask *instance = reinterpret_cast<macro_flask *>(lpParam);
-	/* execute instructation once at first start */
-	for (auto item : instance->_items) {
-		try {
-			flask_instruction *flask = dynamic_cast<flask_instruction *>(item.get());
-			flask->action(nullptr);
-			flask->multiple_reset();
-		} catch (std::bad_cast) {
-			poe_log_fn(MSG_WARNING, "macro_flask", __func__) << "dynamic cast fail";
-		}
-	}
-	for(;;) {
-		/* TODO : lock */
-		if (!(instance->_flags & MACRO_FLAGS_EXECUTE))
-			break;
-		for (auto item : instance->_items) {
-			try {
-				flask_instruction *flask = dynamic_cast<flask_instruction *>(item.get());
-				flask->multiple_decrease();
-				if (!flask->multiple_get()) {
-					flask->action(nullptr);
-					flask->multiple_reset();
-				}
-			} catch (std::bad_cast) {
-				poe_log_fn(MSG_WARNING, "macro_flask", __func__) << "dynamic cast fail";
-			}
-		}
-		Sleep(instance->_interval);
-	}
-	return 0;
-}
 void macro_flask::cal_comm_factor(void) {
 	if (_items.empty())
 		return;
@@ -254,12 +212,44 @@ void macro_flask::cal_comm_factor(void) {
 	poe_log_fn(MSG_DEBUG, "macro_flask", __func__) << "GDC of Flask :" << result;
 }
 
-int macro_flask::execute(void) noexcept {
-	try {
-		_flags |= MACRO_FLAGS_EXECUTE;
-		CreateThread(nullptr, 0, loop_execute_flask_macro, shared_from_this().get(), 0, nullptr);
-	} catch (std::exception &e) {
-		poe_log_fn(MSG_WARNING, "macr_passive_loop", __func__) << e.what();
+int macro_flask::execute(void) {
+	if (_flags & MACRO_FLAGS_EXECUTE) {
+		poe_log_fn(MSG_INFO, "MACRO_FLASK", __func__)
+			<< "macro instance already execute";
+		return 0;
+	}
+	_flags |= MACRO_FLAGS_EXECUTE;
+
+	/* execute instructation once at first start */
+	for (auto item : _items) {
+		try {
+			flask_instruction *flask = dynamic_cast<flask_instruction *>(item.get());
+			flask->action(nullptr);
+			flask->multiple_reset();
+		} catch (std::bad_cast) {
+			poe_log_fn(MSG_WARNING, "macro_flask", __func__) << "dynamic cast fail";
+		}
+	}
+
+	_timer_id = poe_timer::add_timer(
+		new poe_timer::ClassCallback<macro_flask>(this, &macro_flask::_timer_cb), _interval);
+	if (!_timer_id) {
+		throw windows_timer_exception(GetLastError());
 	}
 	return 0;
+}
+
+void macro_flask::_timer_cb(long unsigned int dwTime) {
+	for (auto item : _items) {
+		try {
+			flask_instruction *flask = dynamic_cast<flask_instruction *>(item.get());
+			flask->multiple_decrease();
+			if (!flask->multiple_get()) {
+				flask->action(nullptr);
+				flask->multiple_reset();
+			}
+		} catch (std::bad_cast) {
+			poe_log_fn(MSG_WARNING, "macro_flask", __func__) << "dynamic cast fail";
+		}
+	}
 }

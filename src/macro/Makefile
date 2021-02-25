@@ -9,6 +9,7 @@ CFLAGS += -I $(TOP)/src/macro
 CFLAGS += -I $(TOP)/src/parse
 ifeq ($(PLATFORM), windows)
 	CFLAGS += -I $(TOP)/src/event/platform/windows
+	CFLAGS += -I $(TOP)/src/basic/platform/windows
 endif
 
 include ../lib.rules

@@ -145,10 +145,7 @@ protected :
 	uint8_t _hotkey;
 };
 
-DWORD WINAPI loop_execute_macro(LPVOID lpParam);
-
 class macro_passive_loop : public macro_passive {
-friend DWORD WINAPI loop_execute_macro(LPVOID lpParam);
 public :
 	typedef std::shared_ptr<macro_passive_loop> Ptr;
 	static Ptr createNew(const char *name, uint8_t start,
@@ -156,18 +153,20 @@ public :
 	virtual ~macro_passive_loop() {poe_log(MSG_DEBUG, "loop_execute_macro") << "discostructor";}
 protected :
 	macro_passive_loop(const char *name, uint8_t start, uint8_t stop, int interval) :
-		macro_passive(name, start), _interval(interval), _hotkey_stop(stop), _switch(0) {}
+		macro_passive(name, start), _interval(interval),
+		_hotkey_stop(stop), _switch(0), _timer_id(0) {}
 	virtual int action(const char * const &topic, void *ctx) override;
-	virtual int execute(void) noexcept;
-	virtual int stop(void) noexcept;
 	virtual void statistic(boost::property_tree::ptree *tree) override;
+	virtual int execute(void);
+	int stop(void);
+	virtual void _timer_cb(long unsigned int dwTime);
 	int _interval;
 	uint8_t _hotkey_stop;
 	uint8_t _switch;
+	long _timer_id;
 };
 
 class macro_flask : public macro_passive_loop {
-friend DWORD WINAPI loop_execute_flask_macro(LPVOID lpParam);
 public :
 	typedef std::shared_ptr<macro_flask> Ptr;
 	static Ptr createNew(const char *name, uint8_t start,
@@ -179,7 +178,8 @@ private :
 	macro_flask(const char *name, uint8_t start, uint8_t stop) :
 		macro_passive_loop(name, start, stop, -1) {}
 	void cal_comm_factor(void);
-	int execute(void) noexcept override;
+	virtual int execute(void) override;
+	virtual void _timer_cb(long unsigned int dwTime) override;
 	int record(instruction::Ptr item, unsigned long time) override {
 		/* not support recording, do nothing */
 		return 0;

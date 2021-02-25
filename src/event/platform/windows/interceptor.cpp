@@ -54,7 +54,8 @@ DWORD WINAPI intercept_message(void *) {
 int interceptor::intercept() {
 	MSG message;
 	while(GetMessage(&message, NULL, 0, 0)) {
-		if (message.message == POE_MESSAGE_TERMINAL) {
+		switch(message.message) {
+		case POE_MESSAGE_TERMINAL:
 			poe_log(MSG_DEBUG, "Interceptor")
 			<< "get terminal signal, stop intercept message";
 			break;

@@ -4,7 +4,7 @@ CXX=$(CROSS)g++
 CFLAGS= -g -std=c++11 -O0 -Wall -static-libgcc -static-libstdc++
 
 BIN_PATH=$(shell pwd)/bin/
-UNIT_TEST_BIN_PATH=$(BIN_PATH)/unit_test
+UNIT_TEST_BIN_PATH=$(BIN_PATH)unit_test
 SRC_PATH=$(shell pwd)/src/
 TOP=$(shell pwd)
 BIN=poed
@@ -19,7 +19,7 @@ endif
 
 export CXX CFLAGS TOP PLATFORM UNIT_TEST_BIN_PATH
 
-all:prepare
+all:prepare unit
 
 prepare:
 ifeq "$(wildcard $(BIN_PATH))" ""
