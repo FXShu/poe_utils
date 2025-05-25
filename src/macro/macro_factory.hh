@@ -17,6 +17,8 @@ public:
 class macro_passive_factory : public factory {
 public:
 	macro::Ptr build_macro(observer::Ptr owner, boost::property_tree::ptree &root) override;
+	virtual instruction::Ptr build_instruction(boost::property_tree::ptree &instuction); 
+	int get_keyboard_event_definition(bool press);
 };
 
 class macro_passive_loop_factory : public factory {
@@ -36,6 +38,21 @@ private:
 	static macro_flask_factory *_get() {
 		static macro_flask_factory _macro_flask_factory;
 		return &_macro_flask_factory;
+	}
+};
+
+class macro_subsequence_factory : public macro_passive_factory {
+public:
+	typedef std::shared_ptr<macro_subsequence_factory> Ptr;
+	macro::Ptr build_macro(observer::Ptr owner, boost::property_tree::ptree &rtoot) override;
+	static macro_subsequence_factory *create_factory(void) {
+		return _get();
+	}
+private:
+	macro_subsequence_factory(void) {}
+	static macro_subsequence_factory *_get() {
+		static macro_subsequence_factory _macro_subsequence_factory;
+		return &_macro_subsequence_factory;
 	}
 };
 #endif /* __POE_MACRO_FACTORY_HH */

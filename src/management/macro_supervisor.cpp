@@ -33,6 +33,9 @@ int macro_supervisor::deploy(boost::property_tree::ptree tree) {
 		case MACRO_FLASK:
 			factory = macro_flask_factory::create_factory();
 		break;
+		case MACRO_SUBSEQUENCE:
+			factory = macro_subsequence_factory::create_factory();
+		break;
 		default:
 			poe_log_fn(MSG_WARNING, "MACRO_SUPERVISOR", __func__) << "Unknow macro type";
 			continue;

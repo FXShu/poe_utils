@@ -6,7 +6,18 @@
 #include "macro_windows_define.hh"
 #include "windows_timer.hh"
 #include "io.hh"
+#include "macro_factory.hh"
 extern informer::Ptr poe_informer;
+
+int macro_passive_factory::get_keyboard_event_definition(bool press) {
+	if (press) {
+		return WM_KEYDOWN;
+	} else {
+		return WM_KEYUP;
+	}
+
+	return -1;
+}
 
 static int get_window_mouse_instruction(enum mouse_button button, bool press) {
 	switch(button) {
@@ -362,11 +373,11 @@ int macro_subsequence::execute(void) {
 		return 0;
 	}
 	_flags |= MACRO_FLAGS_EXECUTE;
-	_timer_cb(0);
 	_timer_id = poe_timer::add_timer(
 		new poe_timer::ClassCallback<macro_subsequence>(
 			this, &macro_subsequence::_timer_cb),
 		_interval);
+	_timer_cb(0);
 	if (!_timer_id) {
 		throw windows_timer_exception(GetLastError());
 	}
