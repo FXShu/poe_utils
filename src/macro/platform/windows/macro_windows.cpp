@@ -8,6 +8,48 @@
 #include "io.hh"
 extern informer::Ptr poe_informer;
 
+static int get_window_mouse_instruction(enum mouse_button button, bool press) {
+	switch(button) {
+	case MOUSE_BUTTON_LEFT:
+		if (press)
+			return MOUSEEVENTF_LEFTDOWN;
+		else
+			return MOUSEEVENTF_LEFTUP;
+	case MOUSE_BUTTON_RIGHT:
+		if (press)
+			return MOUSEEVENTF_RIGHTDOWN;
+		else
+			return MOUSEEVENTF_RIGHTUP;
+	case MOUSE_BUTTON_MIDDLE:
+		if (press)
+			return MOUSEEVENTF_MIDDLEDOWN;
+		else
+			return MOUSEEVENTF_MIDDLEUP;
+	default:
+		poe_log(MSG_WARNING, __func__) << "unknown mouse type " << button;
+	}
+	return -1;
+}
+int mouse_instruction::action(void *ctx) {
+	SetCursorPos(_cursor_x, _cursor_y);
+	INPUT input[2] = {0};
+
+	input[0].type = INPUT_MOUSE;
+	input[0].mi.dwFlags = get_window_mouse_instruction(_button, true);
+
+	input[1].type = INPUT_MOUSE;
+	input[1].mi.dwFlags = get_window_mouse_instruction(_button, false);
+
+	if (ARRAY_SIZE(input) != SendInput(ARRAY_SIZE(input), input, sizeof(INPUT))) {
+		poe_log(MSG_WARNING, "mouse_instruction") << "Send mouse event failed, "
+			<< GetLastError();
+		return -1;
+	}
+	poe_log(MSG_DEBUG, "mouse_instruction") << "Send mouse event " << _button << " {"
+		<< _cursor_x << ", " << _cursor_y << "}";
+	return 0;
+}
+
 int keyboard_instruction::action(void *ctx) {
 	int ret;
 	HWND handle = (HWND)GetCurrentProcess();
@@ -26,6 +68,8 @@ int keyboard_instruction::action(void *ctx) {
 		poe_log(MSG_WARNING, "keyboard_instruction") << "post message fail" << GetLastError();
 		return -1;
 	}
+	poe_log(MSG_DEBUG, "keyboard_instruction") << "Post keyboard message type " <<  _type
+		<< "button " << char(_code);
 	return 0;
 }
 
@@ -67,7 +111,7 @@ macro_passive_loop::Ptr macro_passive_loop::createNew(const char *name,
 	macro_passive_loop::Ptr instance;
 
 	if (!master) {
-		poe_log(MSG_ERROR, "Macro_passive") << "invalid parameter";
+		poe_log(MSG_ERROR, "macro_passive_loop") << "invalid parameter";
 		return nullptr;
 	}
 
@@ -78,7 +122,7 @@ macro_passive_loop::Ptr macro_passive_loop::createNew(const char *name,
 		instance->subscribe(poe_informer, POE_MOUSE_EVENT);
 		instance->subscribe(master, MARCO_STATUS_BOARDCAST);
 	} catch (observer_exception &e) {
-		poe_log(MSG_ERROR, "Macro_passive") << e.what();
+		poe_log(MSG_ERROR, "macro_passive_loop") << e.what();
 		return nullptr;
 	}
 	return instance;
@@ -131,6 +175,7 @@ int macro_passive_loop::action(const char * const &topic, void *ctx) {
 	struct keyboard *keyboard = (struct keyboard *)ctx;
 	struct tagKBDLLHOOKSTRUCT *message =
 		reinterpret_cast<struct tagKBDLLHOOKSTRUCT *>(keyboard->info);
+	poe_log(MSG_DEBUG, "macro_passive_loop") << __func__ << ": flags " << _flags;
 	if ((_flags & MACRO_FLAGS_ACTIVE) && keyboard->event == KEYBOARD_MESSAGE_KEYDOWN) {
 		if (_hotkey == _hotkey_stop && message->vkCode == _hotkey) {
 			if (!_switch)
@@ -187,7 +232,7 @@ void macro_flask::remove_flask(const char *name) {
 				break;
 			index++;
 		}
-	} catch (std::bad_cast) {
+	} catch (std::bad_cast const &e) {
 		poe_log_fn(MSG_WARNING, "macro_flask", __func__) << "dynamic cast fail";
 	}
 	macro::remove_instruction(index);
@@ -204,7 +249,7 @@ void macro_flask::cal_comm_factor(void) {
 		try {
 			flask_instruction *flask = dynamic_cast<flask_instruction *>(item.get());
 			flask->multiple_set(flask->duration() / result);
-		} catch (std::bad_cast) {
+		} catch (std::bad_cast const &e) {
 			poe_log_fn(MSG_WARNING, "macro_flask", __func__) << "dynamic cast fail";
 		}
 	}
@@ -226,7 +271,7 @@ int macro_flask::execute(void) {
 			flask_instruction *flask = dynamic_cast<flask_instruction *>(item.get());
 			flask->action(nullptr);
 			flask->multiple_reset();
-		} catch (std::bad_cast) {
+		} catch (std::bad_cast const &e) {
 			poe_log_fn(MSG_WARNING, "macro_flask", __func__) << "dynamic cast fail";
 		}
 	}
@@ -248,8 +293,82 @@ void macro_flask::_timer_cb(long unsigned int dwTime) {
 				flask->action(nullptr);
 				flask->multiple_reset();
 			}
-		} catch (std::bad_cast) {
+		} catch (std::bad_cast const &e) {
 			poe_log_fn(MSG_WARNING, "macro_flask", __func__) << "dynamic cast fail";
 		}
 	}
+}
+
+int macro_subsequence::validation() {
+	int total_delay_time = 0;
+	for (auto item : _items) {
+		total_delay_time += item->duration() > 0 ? item->duration() : _instruction_interval_ms;
+	}
+	if (total_delay_time >= _interval) {
+		poe_log(MSG_WARNING, "macro_subsequence") <<
+			"total delay time of instruction exceeds over interval of macro execution";
+		return -1;
+	}
+	return 0;
+}
+
+int macro_subsequence::action(const char *const &topic, void *ctx) {
+	if (validation()) {
+		return -1;
+	}
+	macro_passive_loop::action(topic, ctx);
+	return 0;
+}
+
+void macro_subsequence::_timer_cb(long unsigned int dwTime) {
+	for (auto item : _items) {
+		if (item->action(nullptr)) {
+			poe_log(MSG_WARNING, "macro_subsequence") << "command execute fail";
+			break;
+		}
+		if (item->duration() > 0)
+			Sleep(item->duration());
+		else
+			Sleep(_instruction_interval_ms);
+	}
+}
+
+macro_subsequence::Ptr macro_subsequence::createNew(const char *name,
+		uint8_t start, uint8_t stop, int interval, observer::Ptr master) noexcept {
+	macro_subsequence::Ptr instance;
+
+	if (!master) {
+		poe_log(MSG_ERROR, "macro_subsequence") << "invalid parameter";
+		return nullptr;
+	}
+
+	try {
+		instance = macro_subsequence::Ptr(
+			new macro_subsequence(name, start, stop, interval));
+		instance->subscribe(poe_informer, POE_KEYBOARD_EVENT);
+		instance->subscribe(poe_informer, POE_MOUSE_EVENT);
+		instance->subscribe(master, MARCO_STATUS_BOARDCAST);
+	} catch (observer_exception &e) {
+		poe_log(MSG_ERROR, "macro_subsequence") << e.what();
+		return nullptr;
+	}
+	return instance;
+}
+
+int macro_subsequence::execute(void) {
+	if (_flags & MACRO_FLAGS_EXECUTE) {
+		poe_log_fn(MSG_INFO, "macro_subsequence", __func__)
+			<< "macro instance already execute";
+		return 0;
+	}
+	_flags |= MACRO_FLAGS_EXECUTE;
+	_timer_cb(0);
+	_timer_id = poe_timer::add_timer(
+		new poe_timer::ClassCallback<macro_subsequence>(
+			this, &macro_subsequence::_timer_cb),
+		_interval);
+	if (!_timer_id) {
+		throw windows_timer_exception(GetLastError());
+	}
+	return 0;
 }

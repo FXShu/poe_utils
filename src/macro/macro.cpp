@@ -2,6 +2,21 @@
 #include "macro.hh"
 #include "io.hh"
 #include "parser.hh"
+#include "message.hh"
+
+void mouse_instruction::show(void) {
+	poe_log(MSG_INFO, "mouse_instruction")
+		<< "click " << parser::get_msg(poe_table_mouse, _button) <<
+		" at {" << _cursor_x << ", " << _cursor_y << "}";
+}
+
+void mouse_instruction::descript(boost::property_tree::ptree *ptree) {
+	ptree->put("type", INSTRUCTION_TYPE_MOUSE);
+	ptree->put("event", _button);
+	ptree->put("cursor_x", _cursor_x);
+	ptree->put("cursor_y", _cursor_y);
+}
+
 void keyboard_instruction::show(void) {
 	poe_log(MSG_INFO, "keyboard_instruction")
 		<< parser::get_msg(poe_table_keyboard, _type)
@@ -88,25 +103,29 @@ int macro_passive::action(const char * const &topic, void *ctx) {
 		return 0;
 	}
 	/* not status change notify, must be hardware input notify event. */
-	struct keyboard *keyboard = (struct keyboard *)ctx;
-	struct tagKBDLLHOOKSTRUCT *message =
-		(struct tagKBDLLHOOKSTRUCT *)keyboard->info;
-	if (_flags & MACRO_FLAGS_ACTIVE) {
-	/* in execute status */
-		if (message->vkCode != _hotkey || 
-			keyboard->event != KEYBOARD_MESSAGE_KEYDOWN)
-			return 0;
-		for (auto item : _items) {
-			if(item->action(ctx))
-				return -1;
-			if (item->duration() > 0)
-				Sleep(item->duration());
+	if (!strcmp(topic, POE_KEYBOARD_EVENT)) {
+		struct keyboard *keyboard = (struct keyboard *)ctx;
+		struct tagKBDLLHOOKSTRUCT *message =
+			(struct tagKBDLLHOOKSTRUCT *)keyboard->info;
+		if (_flags & MACRO_FLAGS_ACTIVE) {
+		/* in execute status */
+			if (message->vkCode != _hotkey ||
+				keyboard->event != KEYBOARD_MESSAGE_KEYDOWN)
+				return 0;
+			for (auto item : _items) {
+				if(item->action(ctx))
+					return -1;
+				if (item->duration() > 0)
+					Sleep(item->duration());
+			}
+		} else if (_flags & MACRO_FLAGS_RECORD){
+		/* in record status */
+			keyboard_instruction::Ptr item =
+				keyboard_instruction::createNew(message->vkCode, keyboard->event, -1);
+			record(item, message->time);
 		}
-	} else if (_flags & MACRO_FLAGS_RECORD){
-	/* in record status */
-		keyboard_instruction::Ptr item =
-			keyboard_instruction::createNew(message->vkCode, keyboard->event, -1);
-		record(item, message->time);
+	} else if (!strcmp(topic, POE_MOUSE_EVENT)) {
+		poe_log(MSG_WARNING, "macro_passive") << "receive mouse event";
 	}
 	return 0;
 }
@@ -159,6 +178,21 @@ void macro_flask::statistic(boost::property_tree::ptree *tree) {
 	for (auto item : _items) {
 		boost::property_tree::ptree description;
 		item->descript(&description);
+		child.push_back(std::make_pair("", description));
+	}
+	tree->put_child("instruction", child);
+}
+
+void macro_subsequence::statistic(boost::property_tree::ptree *tree) {
+	tree->put("type", MACRO_SUBSEQUENCE);
+	tree->put("name", macro::_name);
+	tree->put("hotkey", (char)_hotkey);
+	tree->put("hotkey_stop", (char)_hotkey_stop);
+	boost::property_tree::ptree child;
+	for (auto item : _items) {
+		boost::property_tree::ptree description;
+		item->descript(&description);
+		description.put("delay", item->duration());
 		child.push_back(std::make_pair("", description));
 	}
 	tree->put_child("instruction", child);

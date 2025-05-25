@@ -81,14 +81,54 @@ LRESULT WINAPI  poe_keyboard_handle(int nCode, WPARAM wParam, LPARAM lParam) {
 	poe_informer->publish(POE_KEYBOARD_EVENT, &keyboard);
 	return CallNextHookEx(nullptr, nCode, wParam, lParam);
 }
+#define IDLE_TIME_MS 200
+
+POINT last_point = {0,0};
+DWORD last_mouse_move_time = 0;
+bool is_moving = false;
+CRITICAL_SECTION lock;
+
+DWORD WINAPI mouse_movement_monitor(LPVOID arg) {
+	while(1) {
+		Sleep(50); //Check frequently
+		DWORD now = GetTickCount();
+#if 1
+		//EnterCriticalSection(&lock);
+		if (is_moving && now - last_mouse_move_time > IDLE_TIME_MS) {
+			poe_log(MSG_DEBUG, "mouse_event") << "Mouse move END at "
+				<< last_point.x << ", " << last_point.y;
+			is_moving = false;
+		}
+		//LeaveCriticalSection(&lock);
+#endif
+	}
+	return 0;
+}
 
 LRESULT WINAPI mouse_handle(int nCode, WPARAM wParam, LPARAM lParam) {
-	/* TODO mouse event handle */
+	if (nCode == HC_ACTION && wParam == WM_MOUSEMOVE) {
+		MSLLHOOKSTRUCT *p = (MSLLHOOKSTRUCT *)lParam;
+		DWORD now = GetTickCount();
+
+		//EnterCriticalSection(&lock);
+		if (!is_moving || (p->pt.x != last_point.x || p->pt.y != last_point.y)) {
+			if (!is_moving) {
+				is_moving = true;
+			}
+
+			last_point = p->pt;
+			last_mouse_move_time = now;
+		}
+		//LeaveCriticalSection(&lock);
+	}
 	return CallNextHookEx(nullptr, nCode, wParam, lParam);
 }
 
 informer::Ptr informer::init() {
 	poe_informer = Ptr(new informer);
+	last_mouse_move_time = 0;
+	CreateThread(nullptr, 0, mouse_movement_monitor, nullptr, 0, nullptr);
+
 	return poe_informer;
 } 
 
@@ -99,7 +139,7 @@ informer::informer() {
 		create_session(POE_KEYBOARD_EVENT);
 		poe_log(MSG_DEBUG, "informer") << "install keyboard event hook success";
 	}
-#if 0
+#if 1
 	/* mouse event */
 	if (!install_hook(WH_MOUSE_LL, mouse_handle)) {
 		create_session(POE_MOUSE_EVENT);

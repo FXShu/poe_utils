@@ -1,5 +1,6 @@
 #ifndef __MACRO_HH
 #define __MACRO_HH
+#include <cstdio>
 #include <boost/property_tree/ptree.hpp>
 #include "utils_header.hh"
 #include "observer.hh"
@@ -17,11 +18,13 @@ enum macro_type {
 	MACRO_GENERIC,
 	MACRO_PASSIVE,
 	MACRO_PASSIVE_LOOP,
+	MACRO_SUBSEQUENCE,
 	MACRO_FLASK,
 };
 
 enum instruction_type {
 	INSTRUCTION_TYPE_KEYBOARD,
+	INSTRUCTION_TYPE_MOUSE,
 	INSTRUCTION_TYPE_MAXIMUM,
 };
 
@@ -42,6 +45,32 @@ public :
 protected :
 	instruction(int duration) : _duration(duration) {}
 	int _duration;
+};
+
+enum mouse_button {
+	MOUSE_BUTTON_LEFT,
+	MOUSE_BUTTON_RIGHT,
+	MOUSE_BUTTON_MIDDLE,
+	MOUSE_BUTTON_MAX,
+};
+
+class mouse_instruction : public instruction {
+public:
+	typedef std::shared_ptr<mouse_instruction> Ptr;
+	static Ptr createNew(enum mouse_button button, int cursor_x, int cursor_y, int delay) {
+		Ptr instance = Ptr(new mouse_instruction(button, cursor_x, cursor_y, delay));
+		return instance;
+	}
+	virtual int action(void *ctx) override;
+	void show(void) override;
+	virtual void descript(boost::property_tree::ptree *ptree) override;
+protected:
+	mouse_instruction(enum mouse_button button, int cursor_x, int cursor_y, int delay) :
+		instruction(delay),
+		_button(button), _cursor_x(cursor_x), _cursor_y(cursor_y) {}
+	enum mouse_button _button;
+	int _cursor_x;
+	int _cursor_y;
 };
 
 class keyboard_instruction : public instruction {
@@ -186,4 +215,24 @@ private :
 	}
 };
 
+class macro_subsequence : public macro_passive_loop {
+public:
+	typedef std::shared_ptr<macro_subsequence> Ptr;
+	static Ptr createNew(const char *name, uint8_t start,
+			uint8_t stop, int interval, observer::Ptr master) noexcept;
+	virtual ~macro_subsequence() {poe_log(MSG_DEBUG, "macro_subsequence") << "disconstructor";}
+protected:
+	macro_subsequence(const char *name, uint8_t start, uint8_t stop, int interval) :
+		macro_passive_loop(name, start, stop, interval) {}
+	virtual int execute(void) override;
+	virtual int action(const char * const &topic, void *ctx) override;
+	virtual int validation(void);
+	virtual void statistic(boost::property_tree::ptree *tree) override;
+	virtual void _timer_cb(long unsigned int dwTime);
+	const int _instruction_interval_ms = 200;
+	int record(instruction::Ptr item, unsigned long time) override {
+		/* TODO: recording feature */
+		return 0;
+	}
+};
 #endif /* __MACRiO_HH */

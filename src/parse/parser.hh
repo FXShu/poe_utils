@@ -6,6 +6,7 @@
 enum poe_table_type {
 	poe_table_message,
 	poe_table_keyboard,
+	poe_table_mouse,
 	poe_table_maximum
 };
 

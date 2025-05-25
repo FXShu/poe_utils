@@ -16,6 +16,97 @@ DWORD WINAPI send_terminal(void *id) {
 	return 0;
 }
 
+int hardcode_instructions_for_test_purpose(macro::Ptr macro) {
+	/* Using skill */
+	instruction::Ptr item = keyboard_instruction::createNew('Q', WM_KEYDOWN, 60); 
+	if (nullptr == item) {
+		poe_log(MSG_ERROR, "hardcode_instructions_for_test_purpose") <<
+			"create instruction failed";
+		return -1;
+	}
+	macro->add_instruction(item);
+
+	item = keyboard_instruction::createNew('Q', WM_KEYUP, 5000);
+	if (nullptr == item) {
+		poe_log(MSG_ERROR, "hardcode_instructions_for_test_purpose") <<
+			"create instruction failed";
+		return -1;
+	}
+	macro->add_instruction(item);
+
+	/* Enter to market */
+	//item = mouse_instruction::createNew(MOUSE_BUTTON_LEFT, 1482, 1010, 5000);
+	item = mouse_instruction::createNew(MOUSE_BUTTON_LEFT, 1960, 1350, 5000);
+	if (nullptr == item) {
+		poe_log(MSG_ERROR, "hardcode_instructions_for_test_purpose") <<
+			"create instruction failed";
+		return -1;
+	}
+	macro->add_instruction(item);
+	
+	/* Move to the left */
+	item = keyboard_instruction::createNew('%', WM_KEYDOWN, 5000);
+	if (nullptr == item) {
+		poe_log(MSG_ERROR, "hardcode_instructions_for_test_purpose") <<
+			"create instruction failed";
+		return -1;
+	}
+	macro->add_instruction(item);
+
+	item = keyboard_instruction::createNew('%', WM_KEYUP, 1000);
+	if (nullptr == item) {
+		poe_log(MSG_ERROR, "hardcode_instructions_for_test_purpose") <<
+			"create instruction failed";
+		return -1;
+	}
+	macro->add_instruction(item);
+
+#if 0
+	item = mouse_instruction::createNew(MOUSE_BUTTON_LEFT, 700, 500, 1000);
+	if (nullptr == item) {
+		poe_log(MSG_ERROR, "hardcode_instructions_for_test_purpose") <<
+			"create instruction failed";
+		return -1;
+	}
+	macro->add_instruction(item);
+#endif
+	/* Move to the right */
+	item = keyboard_instruction::createNew(0x27, WM_KEYDOWN, 1500);
+	if (nullptr == item) {
+		poe_log(MSG_ERROR, "hardcode_instructions_for_test_purpose") <<
+			"create instruction failed";
+		return -1;
+	}
+	macro->add_instruction(item);
+
+	item = keyboard_instruction::createNew(0x27, WM_KEYUP, 60000);
+	if (nullptr == item) {
+		poe_log(MSG_ERROR, "hardcode_instructions_for_test_purpose") <<
+			"create instruction failed";
+		return -1;
+	}
+	macro->add_instruction(item);
+
+	/* click above arrow button */
+	item = keyboard_instruction::createNew('&', WM_KEYDOWN, 60);
+	if (nullptr == item) {
+		poe_log(MSG_ERROR, "hardcode_instructions_for_test_purpose") <<
+			"create instruction failed";
+		return -1;
+	}
+	macro->add_instruction(item);
+
+	item = keyboard_instruction::createNew('&', WM_KEYUP, 60);
+	if (nullptr == item) {
+		poe_log(MSG_ERROR, "hardcode_instructions_for_test_purpose") <<
+			"create instruction failed";
+		return -1;
+	}
+	macro->add_instruction(item);
+
+	return 0;
+}
+
 int main(int argc, char **argv) {
 	try {
 		/* intercepte windows system event. */
@@ -31,15 +122,20 @@ int main(int argc, char **argv) {
 		else
 			poe_log(MSG_DEBUG, "Macro test") << "create \"macro status\" session";
 #if 1
+		macro_subsequence::Ptr macro =
+			macro_subsequence::createNew("macro test", 's', 't', 100000, master);
+#else
 		macro_passive_loop::Ptr macro =
 			macro_passive_loop::createNew("macro test", 'Q', 'W', 4000, master);
-#else
 		macro_passive::Ptr macro = macro_passive::createNew("macro test", 'Q', master);
 #endif
 		if (!macro)
 			exit(EXIT_FAILURE);
 		else
 			poe_log(MSG_DEBUG, "Macro test") << "create new macro instace success";
+
+		/* TODO recording feature*/
+#if 0
 		/* Set status of macro to recording */
 		macro_status status = {
 			.name = "macro test",
@@ -57,7 +153,12 @@ int main(int argc, char **argv) {
 			exit(EXIT_FAILURE);
 		macro->show();
 		/* name is nullptr for boardcast. */
-		status = {
+#else
+		/* Test field, hardcode instruction */
+		if (hardcode_instructions_for_test_purpose(macro))
+			exit(EXIT_FAILURE);
+#endif
+		macro_status status = {
 			.name = nullptr,
 			.status = MACRO_FLAGS_ACTIVE
 		};
