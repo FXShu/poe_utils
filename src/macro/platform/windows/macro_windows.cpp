@@ -331,14 +331,42 @@ int macro_subsequence::action(const char *const &topic, void *ctx) {
 	return 0;
 }
 
+DWORD WaitWithMessageLoop(DWORD milliseconds) {
+    DWORD startTime = GetTickCount();
+    while (true) {
+        DWORD elapsed = GetTickCount() - startTime;
+        if (elapsed >= milliseconds)
+            break;
+
+        DWORD wait = MsgWaitForMultipleObjects(
+            0, nullptr, FALSE, milliseconds - elapsed, QS_ALLINPUT);
+
+        if (wait == WAIT_OBJECT_0) {
+            // There's a message in the queue — process it
+            MSG msg;
+            while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
+                TranslateMessage(&msg);
+                DispatchMessage(&msg);
+            }
+        } else {
+            break; // timeout or error
+        }
+    }
+
+    return 0;
+}
+
 void macro_subsequence::_timer_cb(long unsigned int dwTime) {
 	for (auto item : _items) {
+		if (!(_flags & MACRO_FLAGS_EXECUTE))
+			break;
+		poe_log_fn(MSG_DEBUG, "macro_subsequence", __func__) << "execute new inustrction";
 		if (item->action(nullptr)) {
 			poe_log(MSG_WARNING, "macro_subsequence") << "command execute fail";
 			break;
 		}
 		if (item->duration() > 0)
-			Sleep(item->duration());
+			WaitWithMessageLoop(item->duration());
 		else
 			Sleep(_instruction_interval_ms);
 	}

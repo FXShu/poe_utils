@@ -78,6 +78,7 @@ LRESULT WINAPI  poe_keyboard_handle(int nCode, WPARAM wParam, LPARAM lParam) {
 	keyboard.event = wParam;
 	keyboard.info = lParam;
 	
+	poe_log(MSG_DEBUG, "poe_keyboard_handle") << "capture keyboard event";
 	poe_informer->publish(POE_KEYBOARD_EVENT, &keyboard);
 	return CallNextHookEx(nullptr, nCode, wParam, lParam);
 }
