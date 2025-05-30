@@ -17,14 +17,18 @@ instruction::Ptr macro_passive_factory::build_instruction(boost::property_tree::
 			instance = keyboard_instruction::createNew(
 					instruction.get<char>("key", '0'),
 					get_keyboard_event_definition(instruction.get<int>("press", 0)),
-					instruction.get<int>("delay", 0));
+					instruction.get<int>("delay", 0),
+					instruction.get<std::string>("token", ""),
+					instruction.get<int>("check_token_delay", 0));
 			break;
 		case INSTRUCTION_TYPE_MOUSE:
 			instance = mouse_instruction::createNew(
 					(enum mouse_button)instruction.get<int>("button"),
 					instruction.get<int>("cursor_x", 0),
 					instruction.get<int>("cursor_y", 0),
-					instruction.get<int>("delay", 0));
+					instruction.get<int>("delay", 0),
+					instruction.get<std::string>("token", ""),
+					instruction.get<int>("check_token_delay", 50));
 			break;
 		default:
 			poe_log_fn(MSG_WARNING, "macro_passive_factory", __func__) <<

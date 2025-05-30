@@ -1,8 +1,7 @@
 CROSS=i686-w64-mingw32-
 CXX=$(CROSS)g++
 
-CFLAGS= -g -std=c++11 -O0 -Wall -static-libgcc -static-libstdc++
-
+CFLAGS= -g -std=c++11 -O0 -Wall -static-libgcc -static-libstdc++ -I/root/source/boost_1_84_0/boost-mingw32/include -I/root/source/opencv_backup/opencv-windows/include/opencv4
 BIN_PATH=$(shell pwd)/bin/
 UNIT_TEST_BIN_PATH=$(BIN_PATH)unit_test
 SRC_PATH=$(shell pwd)/src/
@@ -32,6 +31,10 @@ clean:
 	$(MAKE) -C src $@
 	$(MAKE) -C unit_test $@
 	@rm -fr $(BIN_PATH)
+
+%.o: %.c
+	$(Q)$(CC) -c -o $@ $(CFLAGS) $<
+	@$(E) " CC " $<
 
 unit: prepare
 	@mkdir -p $(UNIT_TEST_BIN_PATH)

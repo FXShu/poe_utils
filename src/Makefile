@@ -1,4 +1,4 @@
-SUBDIR=basic event macro parse management
+SUBDIR=basic event utils macro parse management
 prepare:
 	@for d in $(SUBDIR); do $(MAKE) -C $$d $@; done
 clean:

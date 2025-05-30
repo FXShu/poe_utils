@@ -1,8 +1,41 @@
 #include <boost/property_tree/ptree.hpp>
+#include <opencv2/opencv.hpp>
 #include "macro.hh"
 #include "io.hh"
 #include "parser.hh"
+#include "utils.hh"
 #include "message.hh"
+
+bool instruction::check_token(void) {
+	poe_log_fn(MSG_DEBUG, "instruction", __func__) << "recognize token " <<
+		_token << " from screen.";
+	if (_token.empty())
+		return true;
+	cv::Mat screen = utils::screenshot();
+	cv::Mat token = cv::imread(_token.c_str());
+
+	if (screen.empty()) {
+		poe_log_fn(MSG_WARNING, "instruction", __func__) <<
+			"screenshot failed";
+		throw instruction_exception("screenshot failed");
+	}
+
+	if (token.empty()) {
+		poe_log_fn(MSG_WARNING, "instruction", __func__) <<
+			"image " << _token << "load failed";
+		std::stringstream reason;
+		reason << "image " << _token << " load failed";
+		throw instruction_exception(reason.str().c_str());
+
+	}
+	cv::Mat result;
+	cv::matchTemplate(screen, token, result, cv::TM_CCOEFF_NORMED);
+	double min_val, max_val;
+	cv::minMaxLoc(result, &min_val, &max_val);
+
+	poe_log_fn(MSG_DEBUG, "instruction", __func__) << "maximum match value " << max_val;
+	return max_val >= 0.8;
+}
 
 void mouse_instruction::show(void) {
 	poe_log(MSG_INFO, "mouse_instruction")
