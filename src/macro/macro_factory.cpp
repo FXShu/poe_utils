@@ -4,6 +4,27 @@
 macro::Ptr macro_passive_factory::build_macro(observer::Ptr owner, boost::property_tree::ptree &root) {
 	macro_passive::Ptr instance;
 	
+	try {
+		instance = macro_passive::createNew(
+				(root.get<std::string>("name", std::string(""))).c_str(),
+				root.get<char>("hotkey"),
+				owner);
+		auto instructions = root.get_child("instruction");
+		for (auto iter = instructions.begin(); iter != instructions.end(); ++iter) {
+			auto instruction = build_instruction(iter->second);
+			if (nullptr == instruction) {
+				poe_log_fn(MSG_WARNING, "macro_subsequence_factory", __func__) <<
+					"Invalid instruction detected";
+				/* TODO: fix memory leak */
+				return nullptr;
+			}
+			instance->add_instruction(instruction);
+		}
+	} catch (boost::property_tree::ptree_bad_path const &e) {
+		poe_log_fn(MSG_WARNING, "macro_passive_factory", __func__) <<
+			"necessary parameter missing";
+		return nullptr;
+	}
 	return instance;
 }
 

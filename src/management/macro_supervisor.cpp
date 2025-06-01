@@ -30,6 +30,9 @@ int macro_supervisor::deploy(boost::property_tree::ptree tree) {
 	for (auto root = it.begin(); root != it.end(); ++root) {
 		macro_type = root->second.get<int>("type", -1);
 		switch(macro_type) {
+		case MACRO_PASSIVE:
+			factory = macro_passive_factory::create_factory();
+		break;
 		case MACRO_FLASK:
 			factory = macro_flask_factory::create_factory();
 		break;

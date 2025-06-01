@@ -16,9 +16,20 @@ public:
 
 class macro_passive_factory : public factory {
 public:
+	typedef std::shared_ptr<macro_passive_factory> Ptr;
 	macro::Ptr build_macro(observer::Ptr owner, boost::property_tree::ptree &root) override;
 	virtual instruction::Ptr build_instruction(boost::property_tree::ptree &instuction); 
 	int get_keyboard_event_definition(bool press);
+	static macro_passive_factory *create_factory(void) {
+		return _get();
+	}
+protected:
+	macro_passive_factory(void) {}
+private:
+	static macro_passive_factory *_get() {
+		static macro_passive_factory _macro_passive_factory;
+		return &_macro_passive_factory;
+	}
 };
 
 class macro_passive_loop_factory : public factory {

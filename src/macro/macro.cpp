@@ -126,16 +126,23 @@ int macro_passive::record(instruction::Ptr item, unsigned long time) {
 }
 
 int macro_passive::action(const char * const &topic, void *ctx) {
+	poe_log_fn(MSG_EXCESSIVE, macro::_name.c_str(), __func__) << "receive message topic " <<
+		topic << " execute action";
 	if (!strcmp(topic, MARCO_STATUS_BOARDCAST)) {
-		struct macro_status *status = (struct macro_status *)ctx;
+		poe_log_fn(MSG_DEBUG, macro::_name.c_str(), __func__) <<
+			"receive marco status boardcast event";
+		struct macro_status *status = static_cast<struct macro_status *>(ctx);
 		if (status->name && strcmp(status->name, macro::_name.c_str())) {
 			/* other macro, igonre */
 			return 0;
 		}
+		poe_log_fn(MSG_DEBUG, macro::_name.c_str(), __func__) <<
+			"set status to " << status->status;
 		_flags = status->status;
 		return 0;
 	}
 	/* not status change notify, must be hardware input notify event. */
+	poe_log_fn(MSG_DEBUG, "macro_passive", __func__) << ": flags " << _flags;
 	if (!strcmp(topic, POE_KEYBOARD_EVENT)) {
 		struct keyboard *keyboard = (struct keyboard *)ctx;
 		struct tagKBDLLHOOKSTRUCT *message =
@@ -149,7 +156,7 @@ int macro_passive::action(const char * const &topic, void *ctx) {
 				if(item->action(ctx))
 					return -1;
 				if (item->duration() > 0)
-					Sleep(item->duration());
+					platform_sleep(item->duration());
 			}
 		} else if (_flags & MACRO_FLAGS_RECORD){
 		/* in record status */

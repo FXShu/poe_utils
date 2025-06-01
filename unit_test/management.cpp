@@ -78,6 +78,7 @@ int main(int argc, char **argv) {
 		macro_root = root.get_child("poe_database");
 		macro_owner->deploy(macro_root);
 		boost::property_tree::ptree tree;
+#if 0
 		/* Set status of macro to recording */
 		macro_status status = {
 			.name = "flask_marco",
@@ -92,7 +93,8 @@ int main(int argc, char **argv) {
 		if (informer->intercept())
 			exit(EXIT_FAILURE);
 		/* name is nullptr for boardcast. */
-		status = {
+#endif
+		macro_status status = {
 			.name = nullptr,
 			.status = MACRO_FLAGS_ACTIVE
 		};
