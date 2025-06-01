@@ -34,7 +34,7 @@ bool instruction::check_token(void) {
 	cv::minMaxLoc(result, &min_val, &max_val);
 
 	poe_log_fn(MSG_DEBUG, "instruction", __func__) << "maximum match value " << max_val;
-	return max_val >= 0.8;
+	return max_val >= _fitness;
 }
 
 void mouse_instruction::show(void) {
@@ -229,4 +229,141 @@ void macro_subsequence::statistic(boost::property_tree::ptree *tree) {
 		child.push_back(std::make_pair("", description));
 	}
 	tree->put_child("instruction", child);
+}
+int macro_passive_loop::action(const char * const &topic, void *ctx) {
+	if (!strcmp(topic, MARCO_STATUS_BOARDCAST)) {
+		struct macro_status *status = static_cast<struct macro_status *>(ctx);
+		if (status->name && strcmp(status->name, macro::_name.c_str())) {
+			_flags ^= MACRO_FLAGS_ACTIVE;
+			return 0;
+		}
+		_flags = status->status;
+		return 0;
+	}
+	/* not status change notify, must be hardware input notify event. */
+	struct keyboard *keyboard = (struct keyboard *)ctx;
+	struct tagKBDLLHOOKSTRUCT *message =
+		reinterpret_cast<struct tagKBDLLHOOKSTRUCT *>(keyboard->info);
+	poe_log(MSG_DEBUG, "macro_passive_loop") << __func__ << ": flags " << _flags;
+	if ((_flags & MACRO_FLAGS_ACTIVE) && keyboard->event == KEYBOARD_MESSAGE_KEYDOWN) {
+		if (_hotkey == _hotkey_stop && message->vkCode == _hotkey) {
+			if (!_switch)
+				execute();
+			else
+				stop();
+			_switch = !_switch;
+		} else {
+			if ((message->vkCode == _hotkey))
+				execute();
+			else if (message->vkCode == _hotkey_stop)
+				stop();
+		}
+	} else if (_flags & MACRO_FLAGS_RECORD){
+		keyboard_instruction::Ptr item =
+			keyboard_instruction::createNew(message->vkCode, keyboard->event, -1);
+		macro_passive::record(item, message->time);
+	}
+	return 0;
+}
+
+void macro_flask::add_flask(const char *name, unsigned int code, int duration) {
+	flask_instruction::Ptr flask = flask_instruction::createNew(name, code, WM_KEYDOWN, duration);
+	macro::add_instruction(flask);
+	cal_comm_factor();
+}
+
+void macro_flask::remove_flask(const char *name) {
+	int index;
+	try {
+		for (auto item : _items) {
+			flask_instruction* flask = dynamic_cast<flask_instruction *>(item.get());
+			if (flask->get_name() == std::string(name))
+				break;
+			index++;
+		}
+	} catch (std::bad_cast const &e) {
+		poe_log_fn(MSG_WARNING, "macro_flask", __func__) << "dynamic cast fail";
+	}
+	macro::remove_instruction(index);
+}
+
+void macro_flask::cal_comm_factor(void) {
+	if (_items.empty())
+		return;
+	int result = _items.front()->duration();
+	for (auto item : _items) {
+		result = std::__gcd(result, item->duration());
+	}
+	for (auto item : _items) {
+		try {
+			flask_instruction *flask = dynamic_cast<flask_instruction *>(item.get());
+			flask->multiple_set(flask->duration() / result);
+		} catch (std::bad_cast const &e) {
+			poe_log_fn(MSG_WARNING, "macro_flask", __func__) << "dynamic cast fail";
+		}
+	}
+	macro_passive_loop::_interval = result;
+	poe_log_fn(MSG_DEBUG, "macro_flask", __func__) << "GDC of Flask :" << result;
+}
+
+void macro_subsequence::_timer_cb(long unsigned int dwTime) {
+	for (auto item : _items) {
+		if (!(_flags & MACRO_FLAGS_EXECUTE))
+			break;
+		poe_log_fn(MSG_DEBUG, "macro_subsequence", __func__) << "execute new inustrction";
+		while ((_flags & MACRO_FLAGS_EXECUTE) && item->action(nullptr)) {
+			poe_log_fn(MSG_DEBUG, "macro_subsequence", __func__) << "flags " << _flags;
+			platform_sleep(_repeated_wait_time_ms);
+		}
+		if (item->duration() > 0)
+			platform_sleep(item->duration());
+		else
+			platform_sleep(_instruction_interval_ms);
+	}
+}
+
+int macro_subsequence::validation() {
+	int total_delay_time = 0;
+	for (auto item : _items) {
+		total_delay_time += item->duration() > 0 ? item->duration() : _instruction_interval_ms;
+	}
+	if (total_delay_time >= _interval) {
+		poe_log(MSG_WARNING, "macro_subsequence") <<
+			"total delay time of instruction exceeds over interval of macro execution";
+		return -1;
+	}
+	return 0;
+}
+
+int macro_subsequence::action(const char *const &topic, void *ctx) {
+	if (validation()) {
+		return -1;
+	}
+	macro_passive_loop::action(topic, ctx);
+	return 0;
+}
+
+void macro_flask::_timer_cb(long unsigned int dwTime) {
+	for (auto item : _items) {
+		try {
+			flask_instruction *flask = dynamic_cast<flask_instruction *>(item.get());
+			flask->multiple_decrease();
+			if (!flask->multiple_get()) {
+				flask->action(nullptr);
+				flask->multiple_reset();
+			}
+		} catch (std::bad_cast const &e) {
+			poe_log_fn(MSG_WARNING, "macro_flask", __func__) << "dynamic cast fail";
+		}
+	}
+}
+
+void macro_passive_loop::_timer_cb(long unsigned int dwTime) {
+	for (auto item : _items) {
+		if (item->action(nullptr)) {
+			poe_log(MSG_WARNING, "loop_execute_macro") << "command execute fail";
+		}
+		if (item->duration() > 0)
+			platform_sleep(item->duration());
+	}
 }

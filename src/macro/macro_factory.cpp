@@ -19,7 +19,8 @@ instruction::Ptr macro_passive_factory::build_instruction(boost::property_tree::
 					get_keyboard_event_definition(instruction.get<int>("press", 0)),
 					instruction.get<int>("delay", 0),
 					instruction.get<std::string>("token", ""),
-					instruction.get<int>("check_token_delay", 0));
+					instruction.get<int>("check_token_delay", 50),
+					instruction.get<float>("token_fitness", 0.8));
 			break;
 		case INSTRUCTION_TYPE_MOUSE:
 			instance = mouse_instruction::createNew(
@@ -28,7 +29,8 @@ instruction::Ptr macro_passive_factory::build_instruction(boost::property_tree::
 					instruction.get<int>("cursor_y", 0),
 					instruction.get<int>("delay", 0),
 					instruction.get<std::string>("token", ""),
-					instruction.get<int>("check_token_delay", 50));
+					instruction.get<int>("check_token_delay", 50),
+					instruction.get<float>("token_fitness", 0.8));
 			break;
 		default:
 			poe_log_fn(MSG_WARNING, "macro_passive_factory", __func__) <<

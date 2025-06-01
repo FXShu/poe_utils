@@ -44,9 +44,11 @@ public :
 	virtual void descript(boost::property_tree::ptree *ptree) = 0;
 	virtual bool check_token(void);
 protected :
-	instruction(int duration, std::string token = "") : _duration(duration), _token(token) {}
+	instruction(int duration, std::string token = "", float fitness = 0.0) :
+		_duration(duration), _token(token), _fitness(fitness) {}
 	int _duration;
 	std::string _token;
+	float _fitness;
 };
 
 enum mouse_button {
@@ -61,9 +63,9 @@ public:
 	typedef std::shared_ptr<mouse_instruction> Ptr;
 	static Ptr createNew(enum mouse_button button, int cursor_x,
 			int cursor_y, int delay,
-			std::string token = "", int check_token_delay = 0) {
+			std::string token = "", int check_token_delay = 0, float fitness = 0.0) {
 		Ptr instance = Ptr(new mouse_instruction(button, cursor_x, cursor_y,
-					delay, token, check_token_delay));
+					delay, token, check_token_delay, fitness));
 		return instance;
 	}
 	virtual int action(void *ctx) override;
@@ -71,8 +73,8 @@ public:
 	virtual void descript(boost::property_tree::ptree *ptree) override;
 protected:
 	mouse_instruction(enum mouse_button button, int cursor_x, int cursor_y,
-			int delay, std::string token, int check_token_delay) :
-		instruction(delay, token), _button(button), _cursor_x(cursor_x),
+			int delay, std::string token, int check_token_delay, float fitness) :
+		instruction(delay, token, fitness), _button(button), _cursor_x(cursor_x),
 		_cursor_y(cursor_y), _check_instruction_wait_time_ms(check_token_delay) {}
 	enum mouse_button _button;
 	int _cursor_x;
@@ -85,9 +87,9 @@ public :
 	typedef std::shared_ptr<keyboard_instruction> Ptr;
 	static Ptr createNew(unsigned int code, unsigned int type,
 			unsigned int duration, std::string token = "",
-			int check_token_delay = 0) {
+			int check_token_delay = 0, float fitness = 0.0) {
 		Ptr instance = Ptr(new keyboard_instruction(code, type, duration,
-					token, check_token_delay));
+					token, check_token_delay, fitness));
 		return instance;
 	}
 	virtual int action(void *ctx) override;
@@ -96,8 +98,8 @@ public :
 protected :
 	keyboard_instruction(unsigned int virtual_code,
 		unsigned int type,unsigned int duration,
-		std::string token, int check_token_delay) :
-		instruction(duration, token), 
+		std::string token, int check_token_delay, float fitness) :
+		instruction(duration, token, fitness), 
 		_type(type), _code(virtual_code),
 		_check_instruction_wait_time_ms(check_token_delay) {}
 	unsigned int _type;
@@ -134,7 +136,7 @@ public:
 private:
 	flask_instruction(const char *name, unsigned int code,
 		unsigned int type, unsigned int duration) :
-		keyboard_instruction(code, type, duration, "", 0), _name(name) {}
+		keyboard_instruction(code, type, duration, "", 0, 0.0), _name(name) {}
 	unsigned int _multiple;
 	unsigned int _multiple_record;
 	std::string _name;
@@ -183,6 +185,7 @@ protected :
 	virtual int action (const char * const &topic, void *ctx) override;
 	virtual int record(instruction::Ptr item, unsigned long time);
 	virtual void statistic(boost::property_tree::ptree *tree) override;
+	virtual void platform_sleep(int milliseconds);
 	int _flags;
 	unsigned long _time;
 	uint8_t _hotkey;
@@ -244,6 +247,7 @@ protected:
 	virtual void statistic(boost::property_tree::ptree *tree) override;
 	virtual void _timer_cb(long unsigned int dwTime);
 	const int _instruction_interval_ms = 200;
+	const int _repeated_wait_time_ms = 500;
 	int record(instruction::Ptr item, unsigned long time) override {
 		/* TODO: recording feature */
 		return 0;
