@@ -1,4 +1,4 @@
-item= macro management
+item= management
 LIB_PATH=$(shell pwd)/../src/
 
 CFLAGS += -I $(TOP)/src/utils

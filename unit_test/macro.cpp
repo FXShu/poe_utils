@@ -111,11 +111,16 @@ int main(int argc, char **argv) {
 	try {
 		/* intercepte windows system event. */
 		Sleep(500);
+		sem_t sem;
 		loglevel = loglevel_e::MSG_DEBUG;
-		informer::Ptr informer = informer::init();
+
+		sem_init(&sem, 0, 0);
+		auto queue = std::make_shared<ThreadsafeQueue<struct instruction_event>>();
+		informer::Ptr informer = informer::init(queue, &sem);
 		poe_log(MSG_DEBUG, "Macro test") << "address of informer " << informer;
 
-		observer::Ptr master = observer::createNew();
+		observer<struct instruction_event>::Ptr master =
+			observer<struct instruction_event>::createNew(queue, &sem);
 		poe_log(MSG_DEBUG, "Macro test") << "address of master observer " << master;
 		if (master->create_session(MARCO_STATUS_BOARDCAST))
 			exit(EXIT_FAILURE);
@@ -123,7 +128,8 @@ int main(int argc, char **argv) {
 			poe_log(MSG_DEBUG, "Macro test") << "create \"macro status\" session";
 #if 1
 		macro_subsequence::Ptr macro =
-			macro_subsequence::createNew("macro test", 's', 't', 100000, master);
+			macro_subsequence::createNew("macro test", 's', 't', 100000, master,
+					queue, &sem);
 #else
 		macro_passive_loop::Ptr macro =
 			macro_passive_loop::createNew("macro test", 'Q', 'W', 4000, master);
@@ -162,7 +168,10 @@ int main(int argc, char **argv) {
 			.name = nullptr,
 			.status = MACRO_FLAGS_ACTIVE
 		};
-		if (master->publish(MARCO_STATUS_BOARDCAST, &status))
+		struct instruction_event event;
+		event.topic = MARCO_STATUS_BOARDCAST;
+		event.context = std::shared_ptr<void>(&status);
+		if (master->publish(event))
 			exit(EXIT_FAILURE);
 		poe_log(MSG_DEBUG, "Macro test") << "force \"macro test\" macro to execute status";
 		if (informer->intercept()) {

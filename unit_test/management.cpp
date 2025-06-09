@@ -16,7 +16,7 @@
 #define DEFAULT_FILE "flask_db.json"
 loglevel_e loglevel;
 
-std::string version("1.0.0");
+std::string version("2.0.0");
 DWORD WINAPI send_terminal(void *id) {
 	Sleep(500);
 	PostThreadMessage((DWORD)id, POE_MESSAGE_TERMINAL, 0, 0);
@@ -53,7 +53,11 @@ int main(int argc, char **argv) {
 		char file[FILE_NAME_MAX];
 		/* intercepte windows system event. */
 		loglevel = loglevel_e::MSG_ERROR;
-		informer::Ptr informer = informer::init();
+		auto queue = std::make_shared<ThreadsafeQueue<struct instruction_event>>();
+		auto mtx = std::make_shared<std::mutex>();
+		auto cv = std::make_shared<std::condition_variable>();
+		auto ready = std::make_shared<bool>(false);
+		informer::Ptr informer = informer::init(queue, mtx, cv, ready);
 		strcpy(file, DEFAULT_FILE);
 		welcome();
 		for (;;) {
@@ -93,13 +97,16 @@ int main(int argc, char **argv) {
 				exit(EXIT_FAILURE);
 			}
 		}
-		macro_supervisor::Ptr macro_owner = macro_supervisor::createNew("macro owner");
+
+		macro_supervisor::Ptr macro_owner =
+			macro_supervisor::createNew("macro owner", queue, mtx, cv, ready);
 		boost::property_tree::ptree root;
 		boost::property_tree::ptree macro_root;
 		boost::property_tree::read_json(file, root);
 		macro_root = root.get_child("poe_database");
 		macro_owner->deploy(macro_root);
 		boost::property_tree::ptree tree;
+		macro_owner->work();
 #if 0
 		/* Set status of macro to recording */
 		macro_status status = {
@@ -116,11 +123,15 @@ int main(int argc, char **argv) {
 			exit(EXIT_FAILURE);
 		/* name is nullptr for boardcast. */
 #endif
+		poe_log(MSG_INFO, "manager") << "Set all of macros into active state";
 		macro_status status = {
 			.name = nullptr,
 			.status = MACRO_FLAGS_ACTIVE
 		};
-		if (macro_owner->publish(MARCO_STATUS_BOARDCAST, &status))
+		struct instruction_event event;
+		event.topic = MARCO_STATUS_BOARDCAST;
+		event.context = std::shared_ptr<void>(&status);
+		if (macro_owner->publish(event))
 			exit(EXIT_FAILURE);
 		if (informer->intercept()) {
 			poe_log(MSG_ERROR, "Informer") << "intercept message failed, exit";

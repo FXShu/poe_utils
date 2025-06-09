@@ -5,6 +5,7 @@ LIB_OBJS= macro_supervisor.o
 CFLAGS += -I $(TOP)/src/utils
 CFLAGS += -I $(TOP)/src/basic
 CFLAGS += -I $(TOP)/src/macro
+CFLAGS += -I $(TOP)/src/event
 CFLAGS += -I /root/boost/include
 
 include ../lib.rules

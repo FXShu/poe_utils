@@ -1,14 +1,19 @@
 #include "macro_factory.hh"
 #include "log.hh"
 
-macro::Ptr macro_passive_factory::build_macro(observer::Ptr owner, boost::property_tree::ptree &root) {
+macro::Ptr macro_passive_factory::build_macro(
+		typename observer<struct instruction_event>::Ptr owner,
+		boost::property_tree::ptree &root,
+		std::shared_ptr<ThreadsafeQueue<struct instruction_event>> queue,
+		std::shared_ptr<std::mutex> mtx, std::shared_ptr<std::condition_variable> cv,
+		std::shared_ptr<bool> ready) {
 	macro_passive::Ptr instance;
 	
 	try {
 		instance = macro_passive::createNew(
 				(root.get<std::string>("name", std::string(""))).c_str(),
 				root.get<char>("hotkey"),
-				owner);
+				owner, queue, mtx, cv, ready);
 		auto instructions = root.get_child("instruction");
 		for (auto iter = instructions.begin(); iter != instructions.end(); ++iter) {
 			auto instruction = build_instruction(iter->second);
@@ -67,20 +72,29 @@ instruction::Ptr macro_passive_factory::build_instruction(boost::property_tree::
 	return instance;
 }
 
-macro::Ptr macro_passive_loop_factory::build_macro(observer::Ptr owner,
-	boost::property_tree::ptree &root) {
+macro::Ptr macro_passive_loop_factory::build_macro(
+		typename observer<struct instruction_event>::Ptr owner,
+		boost::property_tree::ptree &root,
+		std::shared_ptr<ThreadsafeQueue<struct instruction_event>> queue,
+		std::shared_ptr<std::mutex> mtx, std::shared_ptr<std::condition_variable> cv,
+		std::shared_ptr<bool> ready) {
 	macro_passive_loop::Ptr instance;
 	return instance;
 }
 
-macro::Ptr macro_flask_factory::build_macro(observer::Ptr owner, boost::property_tree::ptree &root) {
+macro::Ptr macro_flask_factory::build_macro(
+		typename observer<struct instruction_event>::Ptr owner,
+		boost::property_tree::ptree &root,
+		std::shared_ptr<ThreadsafeQueue<struct instruction_event>> queue,
+		std::shared_ptr<std::mutex> mtx, std::shared_ptr<std::condition_variable> cv,
+		std::shared_ptr<bool> ready) {
 	macro_flask::Ptr instance;
 	try {
 		instance = macro_flask::createNew(
 				(root.get<std::string>("name", std::string(""))).c_str(),
 				root.get<char>("hotkey", '0'),
 				root.get<char>("hotkey_stop", '0'),
-				owner);
+				owner, queue, mtx, cv, ready);
 		auto it = root.get_child("instruction");
 		for (auto instruction = it.begin(); instruction != it.end(); ++instruction) {
 			instance->add_flask(
@@ -99,8 +113,12 @@ macro::Ptr macro_flask_factory::build_macro(observer::Ptr owner, boost::property
 
 
 
-macro::Ptr macro_subsequence_factory::build_macro(observer::Ptr owner,
-		boost::property_tree::ptree &root) {
+macro::Ptr macro_subsequence_factory::build_macro(
+		typename observer<struct instruction_event>::Ptr owner,
+		boost::property_tree::ptree &root,
+		std::shared_ptr<ThreadsafeQueue<struct instruction_event>> queue,
+		std::shared_ptr<std::mutex> mtx, std::shared_ptr<std::condition_variable> cv,
+		std::shared_ptr<bool> ready) {
 	macro_subsequence::Ptr macro;
 	try {
 		macro = macro_subsequence::createNew(
@@ -108,7 +126,7 @@ macro::Ptr macro_subsequence_factory::build_macro(observer::Ptr owner,
 				root.get<char>("hotkey", 's'), // default start hotkey F4
 				root.get<char>("hotkey_stop", 't'), // default stop hotkey F5
 				root.get<int>("period_ms", 0),
-				owner);
+				owner, queue, mtx, cv, ready);
 		auto instructions = root.get_child("instruction");
 		for (auto iter = instructions.begin(); iter != instructions.end(); ++iter) {
 			auto instruction = build_instruction(iter->second);

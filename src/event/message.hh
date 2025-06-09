@@ -15,4 +15,8 @@ enum {
 };
 #endif /* _WIN32 */
 
+struct instruction_event {
+	std::string topic;
+	std::shared_ptr<void> context;
+};
 #endif /* __EVENT_MESSAGE_HH */

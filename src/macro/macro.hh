@@ -145,10 +145,6 @@ private:
 class macro {
 public :
 	typedef std::shared_ptr<macro> Ptr;
-	static Ptr createNew(const char *name) {
-		Ptr instance = Ptr(new macro(name));
-		return instance;
-	}
 	virtual ~macro() {}
 	int rename(std::string);
 	std::string getname(void) {
@@ -157,13 +153,13 @@ public :
 	int add_instruction(instruction::Ptr item);
 	int remove_instruction(unsigned int order);
 	int replace_instruction(unsigned int order, instruction::Ptr item);
+	virtual void onboarding(void) = 0;
 	virtual void statistic(boost::property_tree::ptree *tree);
 protected :
 	macro(const char *name) : _name(name) {}
 	std::vector<instruction::Ptr> _items;
 	std::string _name;
 };
-
 /***
  * macro_passive
  * class member :
@@ -174,18 +170,28 @@ protected :
  * 1. name : name of this macro.
  * 2. master : a observer to switch macro status.
  */
-class macro_passive : public subscriber, public macro {
+class macro_passive : public subscriber<struct instruction_event>, public macro {
 public :
 	typedef std::shared_ptr<macro_passive> Ptr;
-	static Ptr createNew(const char *name, uint8_t hotkey,observer::Ptr master) noexcept;
+	static Ptr createNew(const char *name, uint8_t hotkey,
+			typename observer<struct instruction_event>::Ptr master,
+			std::shared_ptr<ThreadsafeQueue<struct instruction_event>>,
+			std::shared_ptr<std::mutex>, std::shared_ptr<std::condition_variable>,
+			std::shared_ptr<bool> ready) noexcept;
 	void show(void);
 protected :
-	macro_passive(const char *name, uint8_t hotkey) :
-		subscriber(name), macro(name), _flags(0), _hotkey(hotkey) {}
+	macro_passive(const char *name, uint8_t hotkey,
+			std::shared_ptr<ThreadsafeQueue<struct instruction_event>> queue,
+			std::shared_ptr<std::mutex> mtx,
+			std::shared_ptr<std::condition_variable> cv,
+			std::shared_ptr<bool> ready):
+		subscriber<struct instruction_event>(name, queue, mtx, cv, ready),
+		macro(name), _flags(0), _hotkey(hotkey) {}
 	virtual int action (const char * const &topic, void *ctx) override;
 	virtual int record(instruction::Ptr item, unsigned long time);
 	virtual void statistic(boost::property_tree::ptree *tree) override;
 	virtual void platform_sleep(int milliseconds);
+	virtual void onboarding(void) override;
 	int _flags;
 	unsigned long _time;
 	uint8_t _hotkey;
@@ -195,37 +201,54 @@ class macro_passive_loop : public macro_passive {
 public :
 	typedef std::shared_ptr<macro_passive_loop> Ptr;
 	static Ptr createNew(const char *name, uint8_t start,
-			uint8_t stop, int interval, observer::Ptr master) noexcept;
-	virtual ~macro_passive_loop() {poe_log(MSG_DEBUG, "loop_execute_macro") << "discostructor";}
+			uint8_t stop, int interval,
+			typename observer<struct instruction_event>::Ptr master,
+			std::shared_ptr<ThreadsafeQueue<struct instruction_event>>,
+			std::shared_ptr<std::mutex>, std::shared_ptr<std::condition_variable>,
+			std::shared_ptr<bool> ready) noexcept;
+	virtual ~macro_passive_loop() {poe_log(MSG_DEBUG, "macro_passive_loop") << "discostructor";}
 protected :
-	macro_passive_loop(const char *name, uint8_t start, uint8_t stop, int interval) :
-		macro_passive(name, start), _interval(interval),
-		_hotkey_stop(stop), _switch(0), _timer_id(0) {}
+	macro_passive_loop(const char *name, uint8_t start, uint8_t stop, int interval,
+			std::shared_ptr<ThreadsafeQueue<struct instruction_event>> queue,
+			std::shared_ptr<std::mutex> mtx,
+			std::shared_ptr<std::condition_variable> cv,
+			std::shared_ptr<bool> ready):
+		macro_passive(name, start, queue, mtx, cv, ready), _interval(interval),
+		_hotkey_stop(stop), _switch(0), _timer(nullptr) {}
 	virtual int action(const char * const &topic, void *ctx) override;
 	virtual void statistic(boost::property_tree::ptree *tree) override;
 	virtual int execute(void);
 	int stop(void);
-	virtual void _timer_cb(long unsigned int dwTime);
+	static void __stdcall _timer_cb(void *parameter, unsigned char);
+	void work(void);
 	int _interval;
 	uint8_t _hotkey_stop;
 	uint8_t _switch;
-	long _timer_id;
+	void *_timer;
 };
 
 class macro_flask : public macro_passive_loop {
 public :
 	typedef std::shared_ptr<macro_flask> Ptr;
 	static Ptr createNew(const char *name, uint8_t start,
-		uint8_t stop, observer::Ptr master) noexcept;
+		uint8_t stop, typename observer<struct instruction_event>::Ptr master,
+		std::shared_ptr<ThreadsafeQueue<struct instruction_event>> queue,
+		std::shared_ptr<std::mutex>, std::shared_ptr<std::condition_variable>,
+		std::shared_ptr<bool> ready) noexcept;
 	void add_flask(const char *name, unsigned int code, int duration);
 	void remove_flask(const char *name);
 	void statistic(boost::property_tree::ptree *tree) override;
 private :
-	macro_flask(const char *name, uint8_t start, uint8_t stop) :
-		macro_passive_loop(name, start, stop, -1) {}
+	macro_flask(const char *name, uint8_t start, uint8_t stop,
+			std::shared_ptr<ThreadsafeQueue<struct instruction_event>> queue,
+			std::shared_ptr<std::mutex> mtx,
+			std::shared_ptr<std::condition_variable> cv,
+			std::shared_ptr<bool> ready):
+		macro_passive_loop(name, start, stop, -1, queue, mtx, cv, ready) {}
 	void cal_comm_factor(void);
 	virtual int execute(void) override;
-	virtual void _timer_cb(long unsigned int dwTime) override;
+	static void __stdcall _timer_cb(void *parameter, unsigned char);
+	void work(void);
 	int record(instruction::Ptr item, unsigned long time) override {
 		/* not support recording, do nothing */
 		return 0;
@@ -236,16 +259,25 @@ class macro_subsequence : public macro_passive_loop {
 public:
 	typedef std::shared_ptr<macro_subsequence> Ptr;
 	static Ptr createNew(const char *name, uint8_t start,
-			uint8_t stop, int interval, observer::Ptr master) noexcept;
+			uint8_t stop, int interval,
+			typename observer<struct instruction_event>::Ptr master,
+			std::shared_ptr<ThreadsafeQueue<struct instruction_event>> queue,
+			std::shared_ptr<std::mutex>, std::shared_ptr<std::condition_variable>,
+			std::shared_ptr<bool> ready) noexcept;
 	virtual ~macro_subsequence() {poe_log(MSG_DEBUG, "macro_subsequence") << "disconstructor";}
 protected:
-	macro_subsequence(const char *name, uint8_t start, uint8_t stop, int interval) :
-		macro_passive_loop(name, start, stop, interval) {}
+	macro_subsequence(const char *name, uint8_t start, uint8_t stop, int interval,
+			std::shared_ptr<ThreadsafeQueue<struct instruction_event>> queue,
+			std::shared_ptr<std::mutex> mtx,
+			std::shared_ptr<std::condition_variable> cv,
+			std::shared_ptr<bool> ready):
+		macro_passive_loop(name, start, stop, interval, queue, mtx, cv, ready) {}
 	virtual int execute(void) override;
 	virtual int action(const char * const &topic, void *ctx) override;
 	virtual int validation(void);
 	virtual void statistic(boost::property_tree::ptree *tree) override;
-	virtual void _timer_cb(long unsigned int dwTime);
+	static void __stdcall _timer_cb(void *parameter, unsigned char);
+	void work(void);
 	const int _instruction_interval_ms = 200;
 	const int _repeated_wait_time_ms = 500;
 	int record(instruction::Ptr item, unsigned long time) override {

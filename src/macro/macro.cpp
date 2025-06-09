@@ -126,6 +126,7 @@ int macro_passive::record(instruction::Ptr item, unsigned long time) {
 }
 
 int macro_passive::action(const char * const &topic, void *ctx) {
+	try {
 	poe_log_fn(MSG_EXCESSIVE, macro::_name.c_str(), __func__) << "receive message topic " <<
 		topic << " execute action";
 	if (!strcmp(topic, MARCO_STATUS_BOARDCAST)) {
@@ -150,14 +151,18 @@ int macro_passive::action(const char * const &topic, void *ctx) {
 		if (_flags & MACRO_FLAGS_ACTIVE) {
 		/* in execute status */
 			if (message->vkCode != _hotkey ||
-				keyboard->event != KEYBOARD_MESSAGE_KEYDOWN)
+				keyboard->event != KEYBOARD_MESSAGE_KEYDOWN ||
+				_flags & MACRO_FLAGS_EXECUTE)
 				return 0;
+			_flags |= MACRO_FLAGS_EXECUTE;
 			for (auto item : _items) {
 				if(item->action(ctx))
-					return -1;
+					break;
 				if (item->duration() > 0)
 					platform_sleep(item->duration());
 			}
+			poe_log_fn(MSG_EXCESSIVE, macro::_name.c_str(), __func__) << "end macro";
+			_flags &= ~MACRO_FLAGS_EXECUTE;
 		} else if (_flags & MACRO_FLAGS_RECORD){
 		/* in record status */
 			keyboard_instruction::Ptr item =
@@ -166,6 +171,10 @@ int macro_passive::action(const char * const &topic, void *ctx) {
 		}
 	} else if (!strcmp(topic, POE_MOUSE_EVENT)) {
 		poe_log(MSG_WARNING, "macro_passive") << "receive mouse event";
+	}
+	poe_log_fn(MSG_EXCESSIVE, macro::_name.c_str(), __func__) << "end action";
+	} catch (std::exception &e) {
+		poe_log(MSG_ERROR, "macro_passive") << e.what();
 	}
 	return 0;
 }
@@ -313,7 +322,12 @@ void macro_flask::cal_comm_factor(void) {
 	poe_log_fn(MSG_DEBUG, "macro_flask", __func__) << "GDC of Flask :" << result;
 }
 
-void macro_subsequence::_timer_cb(long unsigned int dwTime) {
+void macro_subsequence::_timer_cb(void *parameter, unsigned char expired) {
+	macro_subsequence *self = static_cast<macro_subsequence *>(parameter);
+	self->work();
+}
+
+void macro_subsequence::work() {
 	for (auto item : _items) {
 		if (!(_flags & MACRO_FLAGS_EXECUTE))
 			break;
@@ -350,7 +364,12 @@ int macro_subsequence::action(const char *const &topic, void *ctx) {
 	return 0;
 }
 
-void macro_flask::_timer_cb(long unsigned int dwTime) {
+void macro_flask::_timer_cb(void *parameter, unsigned char expired) {
+	macro_flask *self = static_cast<macro_flask *>(parameter);
+	self->work();
+}
+
+void macro_flask::work(void) {
 	for (auto item : _items) {
 		try {
 			flask_instruction *flask = dynamic_cast<flask_instruction *>(item.get());
@@ -365,7 +384,12 @@ void macro_flask::_timer_cb(long unsigned int dwTime) {
 	}
 }
 
-void macro_passive_loop::_timer_cb(long unsigned int dwTime) {
+void macro_passive_loop::_timer_cb(void *parameter, unsigned char expired) {
+	macro_passive_loop *self = static_cast<macro_passive_loop *>(parameter);
+	self->work();
+}
+
+void macro_passive_loop::work(void) {
 	for (auto item : _items) {
 		if (item->action(nullptr)) {
 			poe_log(MSG_WARNING, "loop_execute_macro") << "command execute fail";
@@ -373,4 +397,8 @@ void macro_passive_loop::_timer_cb(long unsigned int dwTime) {
 		if (item->duration() > 0)
 			platform_sleep(item->duration());
 	}
+}
+
+void macro_passive::onboarding(void) {
+	work();
 }

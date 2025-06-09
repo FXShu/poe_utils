@@ -138,7 +138,11 @@ int flask_instruction::action(void *ctx) {
 	return ret;
 }
 
-macro_passive::Ptr macro_passive::createNew(const char *name, uint8_t hotkey,observer::Ptr master)
+macro_passive::Ptr macro_passive::createNew(const char *name,
+		uint8_t hotkey, typename observer<struct instruction_event>::Ptr master,
+		std::shared_ptr<ThreadsafeQueue<struct instruction_event>> queue,
+		std::shared_ptr<std::mutex> mtx, std::shared_ptr<std::condition_variable> cv,
+		std::shared_ptr<bool> ready)
 	noexcept {
 	macro_passive::Ptr instance;
 
@@ -148,7 +152,7 @@ macro_passive::Ptr macro_passive::createNew(const char *name, uint8_t hotkey,obs
 	}
 
 	try {
-		instance = macro_passive::Ptr(new macro_passive(name, hotkey));
+		instance = macro_passive::Ptr(new macro_passive(name, hotkey, queue, mtx, cv, ready));
 		instance->subscribe(poe_informer, POE_KEYBOARD_EVENT);
 		instance->subscribe(poe_informer, POE_MOUSE_EVENT);
 		instance->subscribe(master, MARCO_STATUS_BOARDCAST);
@@ -160,7 +164,11 @@ macro_passive::Ptr macro_passive::createNew(const char *name, uint8_t hotkey,obs
 }
 
 macro_passive_loop::Ptr macro_passive_loop::createNew(const char *name,
-		uint8_t start, uint8_t stop, int interval, observer::Ptr master) noexcept {
+		uint8_t start, uint8_t stop, int interval,
+		typename observer<struct instruction_event>::Ptr master,
+		std::shared_ptr<ThreadsafeQueue<struct instruction_event>> queue,
+		std::shared_ptr<std::mutex> mtx, std::shared_ptr<std::condition_variable> cv,
+		std::shared_ptr<bool> ready) noexcept {
 	macro_passive_loop::Ptr instance;
 
 	if (!master) {
@@ -170,7 +178,7 @@ macro_passive_loop::Ptr macro_passive_loop::createNew(const char *name,
 
 	try {
 		instance = macro_passive_loop::Ptr(
-			new macro_passive_loop(name, start, stop, interval));
+			new macro_passive_loop(name, start, stop, interval, queue, mtx, cv, ready));
 		instance->subscribe(poe_informer, POE_KEYBOARD_EVENT);
 		instance->subscribe(poe_informer, POE_MOUSE_EVENT);
 		instance->subscribe(master, MARCO_STATUS_BOARDCAST);
@@ -188,18 +196,19 @@ int macro_passive_loop::execute(void) {
 		return 0;
 	}
 	_flags |= MACRO_FLAGS_EXECUTE;
-	_timer_id = poe_timer::add_timer(
-		new poe_timer::ClassCallback<macro_passive_loop>(
-			this, &macro_passive_loop::_timer_cb),
-		_interval);
-	if (!_timer_id) {
+	/* by default, execute the macro after 100ms from receive hotkey event */
+	_timer = poe_timer::add_timer(&_timer_cb, this, 100, _interval);
+	if (nullptr == _timer) {
 		throw windows_timer_exception(GetLastError());
 	}
 	return 0;
 }
 
-macro_flask::Ptr macro_flask::createNew(const char *name, uint8_t start,
-	uint8_t stop, observer::Ptr master) noexcept {
+macro_flask::Ptr macro_flask::createNew(const char *name, uint8_t start, uint8_t stop,
+		typename observer<struct instruction_event>::Ptr master,
+		std::shared_ptr<ThreadsafeQueue<struct instruction_event>> queue,
+		std::shared_ptr<std::mutex> mtx, std::shared_ptr<std::condition_variable> cv,
+		std::shared_ptr<bool> ready) noexcept {
 	macro_flask::Ptr instance;
 
 	if (!master) {
@@ -207,7 +216,7 @@ macro_flask::Ptr macro_flask::createNew(const char *name, uint8_t start,
 		return nullptr;
 	}
 	try {
-		instance = macro_flask::Ptr(new macro_flask(name, start, stop));
+		instance = macro_flask::Ptr(new macro_flask(name, start, stop, queue, mtx, cv, ready));
 		instance->subscribe(poe_informer, POE_KEYBOARD_EVENT);
 		instance->subscribe(poe_informer, POE_MOUSE_EVENT);
 		instance->subscribe(master, MARCO_STATUS_BOARDCAST);
@@ -237,16 +246,19 @@ int macro_flask::execute(void) {
 		}
 	}
 
-	_timer_id = poe_timer::add_timer(
-		new poe_timer::ClassCallback<macro_flask>(this, &macro_flask::_timer_cb), _interval);
-	if (!_timer_id) {
+	_timer = poe_timer::add_timer(&_timer_cb, this, 100, _interval);
+	if (nullptr == _timer) {
 		throw windows_timer_exception(GetLastError());
 	}
 	return 0;
 }
 
 macro_subsequence::Ptr macro_subsequence::createNew(const char *name,
-		uint8_t start, uint8_t stop, int interval, observer::Ptr master) noexcept {
+		uint8_t start, uint8_t stop, int interval,
+		typename observer<struct instruction_event>::Ptr master,
+		std::shared_ptr<ThreadsafeQueue<struct instruction_event>> queue,
+		std::shared_ptr<std::mutex> mtx, std::shared_ptr<std::condition_variable> cv,
+		std::shared_ptr<bool> ready) noexcept {
 	macro_subsequence::Ptr instance;
 
 	if (!master) {
@@ -256,7 +268,7 @@ macro_subsequence::Ptr macro_subsequence::createNew(const char *name,
 
 	try {
 		instance = macro_subsequence::Ptr(
-			new macro_subsequence(name, start, stop, interval));
+			new macro_subsequence(name, start, stop, interval, queue, mtx, cv, ready));
 		instance->subscribe(poe_informer, POE_KEYBOARD_EVENT);
 		instance->subscribe(poe_informer, POE_MOUSE_EVENT);
 		instance->subscribe(master, MARCO_STATUS_BOARDCAST);
@@ -274,12 +286,9 @@ int macro_subsequence::execute(void) {
 		return 0;
 	}
 	_flags |= MACRO_FLAGS_EXECUTE;
-	_timer_id = poe_timer::add_timer(
-		new poe_timer::ClassCallback<macro_subsequence>(
-			this, &macro_subsequence::_timer_cb),
-		_interval);
-	_timer_cb(0);
-	if (!_timer_id) {
+	/* by default, execute the macro after 100ms from receive hotkey event */
+	_timer = poe_timer::add_timer(_timer_cb, this, 100, _interval);
+	if (nullptr == _timer) {
 		throw windows_timer_exception(GetLastError());
 	}
 	return 0;
@@ -287,6 +296,6 @@ int macro_subsequence::execute(void) {
 
 int macro_passive_loop::stop(void) {
 	_flags &= ~MACRO_FLAGS_EXECUTE;
-	poe_timer::del_timer(_timer_id);
+	poe_timer::del_timer(_timer);
 	return 0;
 }
