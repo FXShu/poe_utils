@@ -79,15 +79,13 @@ LRESULT WINAPI poe_message_handle(int nCode, WPARAM wParam, LPARAM lParam) {
 }
 
 LRESULT WINAPI  poe_keyboard_handle(int nCode, WPARAM wParam, LPARAM lParam) {
-	struct keyboard keyboard;
-	
-	keyboard.event = wParam;
-	keyboard.info = lParam;
-	
+	auto keyboard = std::shared_ptr<struct keyboard>(new struct keyboard());
+	keyboard->event = wParam;
+	keyboard->info = lParam;
 	poe_log(MSG_DEBUG, "poe_keyboard_handle") << "capture keyboard event";
 	struct instruction_event event;
 	event.topic = POE_KEYBOARD_EVENT;
-	event.context = std::shared_ptr<void>(&keyboard);
+	event.context = keyboard;
 	poe_informer->publish(event);
 	auto ret = CallNextHookEx(nullptr, nCode, wParam, lParam);
 	poe_log(MSG_EXCESSIVE, "poe_keyboard_handle") << "pass event to next hook";

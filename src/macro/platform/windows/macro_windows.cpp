@@ -196,11 +196,9 @@ int macro_passive_loop::execute(void) {
 		return 0;
 	}
 	_flags |= MACRO_FLAGS_EXECUTE;
-	_timer_id = poe_timer::add_timer(
-		new poe_timer::ClassCallback<macro_passive_loop>(
-			this, &macro_passive_loop::_timer_cb),
-		_interval);
-	if (!_timer_id) {
+	/* by default, execute the macro after 100ms from receive hotkey event */
+	_timer = poe_timer::add_timer(&_timer_cb, this, 100, _interval);
+	if (nullptr == _timer) {
 		throw windows_timer_exception(GetLastError());
 	}
 	return 0;
@@ -248,9 +246,8 @@ int macro_flask::execute(void) {
 		}
 	}
 
-	_timer_id = poe_timer::add_timer(
-		new poe_timer::ClassCallback<macro_flask>(this, &macro_flask::_timer_cb), _interval);
-	if (!_timer_id) {
+	_timer = poe_timer::add_timer(&_timer_cb, this, 100, _interval);
+	if (nullptr == _timer) {
 		throw windows_timer_exception(GetLastError());
 	}
 	return 0;
@@ -289,12 +286,9 @@ int macro_subsequence::execute(void) {
 		return 0;
 	}
 	_flags |= MACRO_FLAGS_EXECUTE;
-	_timer_id = poe_timer::add_timer(
-		new poe_timer::ClassCallback<macro_subsequence>(
-			this, &macro_subsequence::_timer_cb),
-		_interval);
-	_timer_cb(0);
-	if (!_timer_id) {
+	/* by default, execute the macro after 100ms from receive hotkey event */
+	_timer = poe_timer::add_timer(_timer_cb, this, 100, _interval);
+	if (nullptr == _timer) {
 		throw windows_timer_exception(GetLastError());
 	}
 	return 0;
@@ -302,6 +296,6 @@ int macro_subsequence::execute(void) {
 
 int macro_passive_loop::stop(void) {
 	_flags &= ~MACRO_FLAGS_EXECUTE;
-	poe_timer::del_timer(_timer_id);
+	poe_timer::del_timer(_timer);
 	return 0;
 }

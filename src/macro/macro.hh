@@ -214,16 +214,17 @@ protected :
 			std::shared_ptr<std::condition_variable> cv,
 			std::shared_ptr<bool> ready):
 		macro_passive(name, start, queue, mtx, cv, ready), _interval(interval),
-		_hotkey_stop(stop), _switch(0), _timer_id(0) {}
+		_hotkey_stop(stop), _switch(0), _timer(nullptr) {}
 	virtual int action(const char * const &topic, void *ctx) override;
 	virtual void statistic(boost::property_tree::ptree *tree) override;
 	virtual int execute(void);
 	int stop(void);
-	virtual void _timer_cb(long unsigned int dwTime);
+	static void __stdcall _timer_cb(void *parameter, unsigned char);
+	void work(void);
 	int _interval;
 	uint8_t _hotkey_stop;
 	uint8_t _switch;
-	long _timer_id;
+	void *_timer;
 };
 
 class macro_flask : public macro_passive_loop {
@@ -246,7 +247,8 @@ private :
 		macro_passive_loop(name, start, stop, -1, queue, mtx, cv, ready) {}
 	void cal_comm_factor(void);
 	virtual int execute(void) override;
-	virtual void _timer_cb(long unsigned int dwTime) override;
+	static void __stdcall _timer_cb(void *parameter, unsigned char);
+	void work(void);
 	int record(instruction::Ptr item, unsigned long time) override {
 		/* not support recording, do nothing */
 		return 0;
@@ -274,7 +276,8 @@ protected:
 	virtual int action(const char * const &topic, void *ctx) override;
 	virtual int validation(void);
 	virtual void statistic(boost::property_tree::ptree *tree) override;
-	virtual void _timer_cb(long unsigned int dwTime);
+	static void __stdcall _timer_cb(void *parameter, unsigned char);
+	void work(void);
 	const int _instruction_interval_ms = 200;
 	const int _repeated_wait_time_ms = 500;
 	int record(instruction::Ptr item, unsigned long time) override {
