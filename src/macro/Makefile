@@ -18,4 +18,4 @@ prepare : $(LIB)
 
 $(LIB) : $(LIB_OBJS)
 	@printf '  %-10s  %s\n' "AR" $@
-	@$(AR) crT $@ $^ $(TOP)/src/basic/libbasic.a
+	@$(AR) crT $@ $^

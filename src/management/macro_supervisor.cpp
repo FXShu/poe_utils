@@ -1,5 +1,23 @@
 #include "supervisor.hh"
 #include "macro_factory.hh"
+#include "message.hh"
+
+int macro_supervisor::work(void) {
+	for (auto &employee : _subordinates) {
+		auto t = std::make_shared<std::thread>(
+				std::bind(&macro::onboarding, employee),
+				employee);
+		_threads.push_back(t);
+	}
+	for (auto &t : _threads) {
+		t->detach();
+		poe_log_fn(MSG_DEBUG, "macro_supervisor", __func__) <<
+			"fork thread for employee complete";
+	}
+	poe_log_fn(MSG_INFO, "macro_supervisor", __func__) << "onboard all macro complete";
+	return 0;
+}
+
 int macro_supervisor::recruit(macro::Ptr s) {
 	_subordinates.push_back(s);
 	return 0;
@@ -45,11 +63,10 @@ int macro_supervisor::deploy(boost::property_tree::ptree tree) {
 		}
 		macro = factory->build_macro(
 			std::enable_shared_from_this<macro_supervisor>::shared_from_this(),
-			root->second
-		);
+			root->second, queue_, mtx_, cv_, ready_);
 		recruit(macro);
 	}
-	return -1;
+	return 0;
 }
 
 boost::property_tree::ptree macro_supervisor::statistic(void) {

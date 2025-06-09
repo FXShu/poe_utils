@@ -126,6 +126,7 @@ int macro_passive::record(instruction::Ptr item, unsigned long time) {
 }
 
 int macro_passive::action(const char * const &topic, void *ctx) {
+	try {
 	poe_log_fn(MSG_EXCESSIVE, macro::_name.c_str(), __func__) << "receive message topic " <<
 		topic << " execute action";
 	if (!strcmp(topic, MARCO_STATUS_BOARDCAST)) {
@@ -150,14 +151,18 @@ int macro_passive::action(const char * const &topic, void *ctx) {
 		if (_flags & MACRO_FLAGS_ACTIVE) {
 		/* in execute status */
 			if (message->vkCode != _hotkey ||
-				keyboard->event != KEYBOARD_MESSAGE_KEYDOWN)
+				keyboard->event != KEYBOARD_MESSAGE_KEYDOWN ||
+				_flags & MACRO_FLAGS_EXECUTE)
 				return 0;
+			_flags |= MACRO_FLAGS_EXECUTE;
 			for (auto item : _items) {
 				if(item->action(ctx))
-					return -1;
+					break;
 				if (item->duration() > 0)
 					platform_sleep(item->duration());
 			}
+			poe_log_fn(MSG_EXCESSIVE, macro::_name.c_str(), __func__) << "end macro";
+			_flags &= ~MACRO_FLAGS_EXECUTE;
 		} else if (_flags & MACRO_FLAGS_RECORD){
 		/* in record status */
 			keyboard_instruction::Ptr item =
@@ -166,6 +171,10 @@ int macro_passive::action(const char * const &topic, void *ctx) {
 		}
 	} else if (!strcmp(topic, POE_MOUSE_EVENT)) {
 		poe_log(MSG_WARNING, "macro_passive") << "receive mouse event";
+	}
+	poe_log_fn(MSG_EXCESSIVE, macro::_name.c_str(), __func__) << "end action";
+	} catch (std::exception &e) {
+		poe_log(MSG_ERROR, "macro_passive") << e.what();
 	}
 	return 0;
 }
@@ -373,4 +382,8 @@ void macro_passive_loop::_timer_cb(long unsigned int dwTime) {
 		if (item->duration() > 0)
 			platform_sleep(item->duration());
 	}
+}
+
+void macro_passive::onboarding(void) {
+	work();
 }

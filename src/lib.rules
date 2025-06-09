@@ -7,7 +7,7 @@ CFLAGS = -g -Wno-deprecated-declarations -std=c++11
 endif
 
 %.o: %.cpp
-	@printf '  %-10s  %s\n' "CXX" $@
+	@printf '  %-10s  %s\n' $(CXX) $(INCLUDE) -c -o $@ $(CFLAGS) $<
 	@$(CXX) $(INCLUDE) -c -o $@ $(CFLAGS) $<
 
 clean:
