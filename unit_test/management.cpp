@@ -16,6 +16,7 @@
 #define DEFAULT_FILE "flask_db.json"
 loglevel_e loglevel;
 
+std::string version("1.0.0");
 DWORD WINAPI send_terminal(void *id) {
 	Sleep(500);
 	PostThreadMessage((DWORD)id, POE_MESSAGE_TERMINAL, 0, 0);
@@ -24,10 +25,26 @@ DWORD WINAPI send_terminal(void *id) {
 
 void help(void) {
 	std::cout << "[Usage]:" << std::endl;
-	std::cout << "\tflask_marco.exe [-f <database name>] [-d <log_level>]..." << std::endl;
+	std::cout << "\tmanagement.exe [-f <database name>] [-d <log_level>]..." << std::endl;
 	std::cout << "\t\t-f = database file specific (json format)" << std::endl;
 	std::cout << "\t\t-d = increase debugging verbosity, must be 0 ~ 4" << std::endl;
 	std::cout << "\t\t-h = print this helping information" << std::endl;
+	std::cout << "\t\t-v = print the current version information" << std::endl;
+}
+
+void welcome(void) {
+	std::cout << "===============================================================" << std::endl;
+	std::cout << "                MacroSim - Configurable Macro Engine" << std::endl;
+	std::cout << " Version:       " << version << std::endl;
+	std::cout << " Author:        [FX Shu, KT Li]" << std::endl;
+	std::cout << " Purpose:       A lightweight and flexible CLI tool that lets users" << std::endl;
+	std::cout << "                define and run custom macros to simulate keyboard" << std::endl;
+	std::cout << "                and mouse events. Automate tasks, test inputs, or" << std::endl;
+	std::cout << "                script your environment with ease.\n" << std::endl;
+	std::cout << " Repository:    https://github.com/FXShu/poe_utils\n" << std::endl;
+	std::cout << " Get started by loading your macro configuration file." << std::endl;
+	std::cout << " Type '-h' to view available options and commands.\n" << std::endl;
+	std::cout << "===============================================================" << std::endl;
 }
 
 int main(int argc, char **argv) {
@@ -38,8 +55,9 @@ int main(int argc, char **argv) {
 		loglevel = loglevel_e::MSG_ERROR;
 		informer::Ptr informer = informer::init();
 		strcpy(file, DEFAULT_FILE);
+		welcome();
 		for (;;) {
-			c = getopt(argc, argv, "d:f:h");
+			c = getopt(argc, argv, "d:f:hv");
 			if (c < 0)
 				break;
 			switch(c) {
@@ -64,6 +82,10 @@ int main(int argc, char **argv) {
 			break;
 			case 'h':
 				help();
+				exit(EXIT_SUCCESS);
+			break;
+			case 'v':
+				std::cout << version << std::endl;
 				exit(EXIT_SUCCESS);
 			break;
 			default:
