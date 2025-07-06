@@ -1,0 +1,12 @@
+prefix=/root/leptonica-win32
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include/leptonica
+
+Name: leptonica
+Description: An open source C library for efficient image processing and image analysis operations
+Version: 1.85.1
+Libs: -L${libdir} -lleptonica
+Libs.private: -L/root/source/zlib_bin/lib -lz -L/root/libpng-win32/lib -lpng16      
+Cflags: -I${includedir}
+
