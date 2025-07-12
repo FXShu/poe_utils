@@ -66,4 +66,7 @@ extern loglevel_e loglevel;
 #define poe_log_fn(level, module, func) \
 	if (level > loglevel); \
 	else logIt(module, func,level)
+
+#define poe_object_log(level) poe_log(level, typeid(*this).name())
+#define poe_object_log_fn(level) poe_log_fn(level, typeid(*this).name(), __func__)
 #endif /* __UTILS_LOG_HH */

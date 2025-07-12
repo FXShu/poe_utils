@@ -1,10 +1,241 @@
+#ifdef _WIN32
+#ifndef _WIN32_WINNT
+#define _WIN32_WINNT 0x0600
+#else
+#undef _WIN32_WINNT
+#define _WIN32_WINNT 0x0600
+#endif /* _WIN32_WINNT */
+#endif /* _WIN32 */
+
 #include <boost/property_tree/ptree.hpp>
 #include <opencv2/opencv.hpp>
+#include <unordered_map>
+#include <regex>
+#define DPP_NO_DEPRECATED ON
+#include <dpp/dpp.h>
+
 #include "macro.hh"
 #include "io.hh"
 #include "parser.hh"
 #include "utils.hh"
 #include "message.hh"
+#include "macro_factory.hh"
+
+#include <tesseract/baseapi.h>
+#include <leptonica/allheaders.h>
+
+static std::unordered_map<std::string, std::string> variables;
+
+int discord_notification_instruction::action(void *ctx) {
+	std::regex re(R"(\$([a-zA-Z_][a-zA-Z0-9_]*))");
+	std::string result = _message;
+	std::smatch match;
+	std::string formatted;
+	std::string ::const_iterator search_start(result.cbegin());
+
+	while(std::regex_search(search_start, result.cend(), match, re)) {
+		formatted.append(search_start, match[0].first);
+		std::string var_name = match[1].str();
+
+		auto it = variables.find(var_name);
+		if (it != variables.end()) {
+			formatted.append(it->second);
+		} else {
+			poe_object_log_fn(MSG_WARNING) << "variable " << var_name << " not existed";
+			return -1;
+		}
+		search_start = match[0].second;
+	}
+	formatted.append(search_start, result.cend());
+
+	dpp::cluster bot(_token, dpp::i_default_intents | dpp::i_message_content);
+
+	bot.on_log(dpp::utility::cout_logger());
+
+	bot.on_ready([&bot, this, &formatted](const dpp::ready_t &event) {
+		bot.message_create(dpp::message(_channel, formatted));
+	});
+
+	bot.start(dpp::st_wait);
+	return 0;
+}
+
+void discord_notification_instruction::show(void) {
+	poe_object_log(MSG_INFO) << "send message" << _message << " to channel " << _channel <<
+		" via token " << _token;
+}
+
+void discord_notification_instruction::descript(boost::property_tree::ptree *ptree) {}
+
+int variable_obtain_instruction::action(void *ctx) {
+	cv::Mat screen = utils::screenshot();
+	if (screen.empty()) {
+		poe_object_log_fn(MSG_WARNING) << "screen shot failed";
+		return -1;
+	}
+
+	cv::Rect roi(_coordinate.start_x, _coordinate.start_y,
+			_coordinate.end_x - _coordinate.start_x,
+			_coordinate.end_y - _coordinate.start_y);
+
+	screen = screen(roi);
+
+	cv::Mat gray;
+	cv::cvtColor(screen, gray, cv::COLOR_BGR2GRAY);
+
+	// Threshold for better contrast;
+	cv::Mat thresh;
+	cv::threshold(gray, thresh, 130, 255, cv::THRESH_BINARY);
+
+	// Initialize Tesseract API
+	tesseract::TessBaseAPI tess;
+	if (tess.Init("./tessdata", "eng", tesseract::OEM_LSTM_ONLY)) {
+		poe_object_log_fn(MSG_WARNING) << "Could not initialize Tesseract";
+		return -1;
+	}
+
+	tess.SetVariable("tessedit_char_whitelist", "0123456789");
+	tess.SetPageSegMode(tesseract::PSM_SINGLE_LINE);
+	tess.SetImage(thresh.data, thresh.cols, thresh.rows, 1, thresh.step);
+
+	/* Get OCR result */
+	std::string result = tess.GetUTF8Text();
+	poe_object_log_fn(MSG_DEBUG) << "Obtain variable " << _variable << " = " << result;
+	/* TODO: where should we store the variable? */
+	variables[_variable] = result;
+
+	return 0;
+}
+
+void variable_obtain_instruction::show(void) {
+	poe_object_log(MSG_INFO) << "Try to obtain variable " << _variable <<
+		" from scrren " << get_coordinate();
+}
+
+void variable_obtain_instruction::descript(boost::property_tree::ptree *ptree) {}
+
+int condition_instruction::action(void *ctx) {
+	if (check_token()) {
+		/* success */
+		poe_object_log_fn(MSG_DEBUG) << "execute success action";
+		for (auto &item : _success_actions) {
+			while (item->action(nullptr)) {
+				platform_sleep(_repeated_wait_time_ms);
+			}
+			if (item->duration() > 0)
+				platform_sleep(item->duration());
+			else
+				platform_sleep(_instruction_interval_ms);
+		}
+	} else {
+		/* failed */
+		poe_object_log_fn(MSG_DEBUG) << "execute failure action";
+		for (auto &item : _failure_actions) {
+			while (item->action(nullptr)) {
+				platform_sleep(_repeated_wait_time_ms);
+			}
+			if (item->duration() > 0)
+				platform_sleep(item->duration());
+			else
+				platform_sleep(_instruction_interval_ms);
+		}
+	}
+	return 0;
+}
+
+void condition_instruction::show(void) {
+	switch (_type) {
+	case condition_type::IMAGE_RECOGNIZE:
+		poe_object_log(MSG_INFO) << "check the image " <<  _token <<
+		" presents in the screen " << get_coordinate();
+		break;
+	default:
+		poe_object_log(MSG_INFO) << "invalid condition";
+		break;
+	}
+}
+
+void condition_instruction::descript(boost::property_tree::ptree *ptee) {}
+
+condition_instruction::Ptr
+condition_instruction::createNew(const boost::property_tree::ptree &config) {
+	condition_instruction::Ptr instance = nullptr;
+	try {
+		instance = condition_instruction::Ptr(new condition_instruction());
+		auto &condition = config.get_child("condition");
+		auto &success = config.get_child("success");
+		auto &failure = config.get_child("failure");
+		if (!instance->generate_condition(condition) ||
+			!instance->generate_action(instance->_success_actions, success) ||
+			!instance->generate_action(instance->_failure_actions, failure)) {
+			// TODO : fix memory leak.
+			return nullptr;
+		}
+
+	} catch (boost::property_tree::ptree_bad_path const &e) {
+		poe_log_fn(MSG_ERROR, "condition_instruction", __func__) <<
+			"necessary parameter missing";
+		return nullptr;
+	}
+	return instance;
+}
+
+bool condition_instruction::generate_action(std::vector<instruction::Ptr> &actions,
+		const boost::property_tree::ptree &config) {
+	for (auto iter = config.begin(); iter != config.end(); ++iter) {
+		auto instruction = builder::build_instruction(iter->second);
+		if (nullptr == instruction) {
+			poe_object_log_fn(MSG_WARNING) << "invalid instruction detected";
+			return false;
+		}
+		actions.push_back(instruction);
+	}
+	return true;
+}
+
+bool condition_instruction::generate_condition(const boost::property_tree::ptree &action) {
+	try {
+		_type = static_cast<enum condition_type>(action.get<int>("type"));
+		switch(_type) {
+		case condition_type::IMAGE_RECOGNIZE:
+			_token = action.get<std::string>("token");
+			if (parse_coordinate(action.get<std::string>("coordinate"))) {
+				poe_object_log_fn(MSG_ERROR) << "invalid coordinate";
+				return false;
+			}
+			_fitness = action.get<float>("token_fitness");
+			break;
+		default:
+			poe_object_log_fn(MSG_ERROR) << "unknown condition type " << _type;
+			return false;
+		}
+	} catch (boost::property_tree::ptree_bad_path const &e) {
+		poe_object_log_fn(MSG_WARNING) << "necessary parameter missing";
+		return false;
+	}
+	return true;
+}
+std::string instruction::get_coordinate(void) {
+	std::stringstream ss;
+	ss << "(" << _coordinate.start_x <<  ", " << _coordinate.start_y <<
+		", " << _coordinate.end_x << ", " << _coordinate.end_y << ")";
+
+	return ss.str();
+}
+
+
+bool instruction::parse_coordinate(const std::string &coordinate_str) {
+	std::stringstream ss(coordinate_str);
+	char comma;
+
+	if ((ss >> _coordinate.start_x >> comma && comma == ',') &&
+			(ss >> _coordinate.start_y >> comma && comma == ',') &&
+			(ss >> _coordinate.end_x >> comma && comma == ',') &&
+			(ss >> _coordinate.end_y >> comma && comma == ',')) {
+		return ss.eof();
+	}
+	return false;
+}
 
 bool instruction::check_token(void) {
 	poe_log_fn(MSG_DEBUG, "instruction", __func__) << "recognize token " <<
@@ -27,6 +258,13 @@ bool instruction::check_token(void) {
 		reason << "image " << _token << " load failed";
 		throw instruction_exception(reason.str().c_str());
 
+	}
+
+	if (_coordinate.start_x || _coordinate.start_y || _coordinate.end_x || _coordinate.end_y) {
+		cv::Rect roi(_coordinate.start_x, _coordinate.start_y,
+				_coordinate.end_x - _coordinate.start_x,
+				_coordinate.end_y - _coordinate.start_y);
+		screen = screen(roi);
 	}
 	cv::Mat result;
 	cv::matchTemplate(screen, token, result, cv::TM_CCOEFF_NORMED);

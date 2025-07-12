@@ -34,11 +34,15 @@ static DWORD WaitWithMessageLoop(DWORD milliseconds) {
     return 0;
 }
 
+void condition_instruction::platform_sleep(int milliseconds) {
+	WaitWithMessageLoop(static_cast<DWORD>(milliseconds));
+}
+
 void macro_passive::platform_sleep(int milliseconds) {
 	WaitWithMessageLoop(static_cast<DWORD>(milliseconds));
 }
 
-int macro_passive_factory::get_keyboard_event_definition(bool press) {
+int builder::get_keyboard_event_definition(bool press) {
 	if (press) {
 		return WM_KEYDOWN;
 	} else {

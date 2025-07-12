@@ -16,7 +16,7 @@ macro::Ptr macro_passive_factory::build_macro(
 				owner, queue, mtx, cv, ready);
 		auto instructions = root.get_child("instruction");
 		for (auto iter = instructions.begin(); iter != instructions.end(); ++iter) {
-			auto instruction = build_instruction(iter->second);
+			auto instruction = builder::build_instruction(iter->second);
 			if (nullptr == instruction) {
 				poe_log_fn(MSG_WARNING, "macro_subsequence_factory", __func__) <<
 					"Invalid instruction detected";
@@ -33,7 +33,8 @@ macro::Ptr macro_passive_factory::build_macro(
 	return instance;
 }
 
-instruction::Ptr macro_passive_factory::build_instruction(boost::property_tree::ptree &instruction) {
+instruction::Ptr
+builder::build_instruction(const boost::property_tree::ptree &instruction) {
 	instruction::Ptr instance;
 	try {
 		enum instruction_type type = (enum instruction_type)instruction.get<int>("type");
@@ -42,7 +43,7 @@ instruction::Ptr macro_passive_factory::build_instruction(boost::property_tree::
 		case INSTRUCTION_TYPE_KEYBOARD:
 			instance = keyboard_instruction::createNew(
 					instruction.get<char>("key", '0'),
-					get_keyboard_event_definition(instruction.get<int>("press", 0)),
+					builder::get_keyboard_event_definition(instruction.get<int>("press", 0)),
 					instruction.get<int>("delay", 0),
 					instruction.get<std::string>("token", ""),
 					instruction.get<int>("check_token_delay", 50),
@@ -58,10 +59,31 @@ instruction::Ptr macro_passive_factory::build_instruction(boost::property_tree::
 					instruction.get<int>("check_token_delay", 50),
 					instruction.get<float>("token_fitness", 0.8));
 			break;
+		case INSTRUCTION_TYPE_CONDITION:
+			instance = condition_instruction::createNew(instruction);
+			break;
+		case INSTRUCTION_TYPE_VARIABLE_OBTAIN:
+			instance = variable_obtain_instruction::createNew(
+					instruction.get<std::string>("variable"),
+					instruction.get<int>("delay", 0),
+					static_cast<enum variable_obtain_type>(
+						instruction.get<int>("method")));
+			break;
+		case INSTRUCTION_TYPE_DISCORD_NOTIFICATION:
+			instance = discord_notification_instruction::createNew(
+					instruction.get<std::string>("discord_bot_id"),
+					instruction.get<std::string>("discord_chatroom"),
+					instruction.get<std::string>("message"));
+			break;
 		default:
 			poe_log_fn(MSG_WARNING, "macro_passive_factory", __func__) <<
 				"unknown instruction type " << type;
 			return nullptr;
+		}
+
+		if (nullptr != instance) {
+			instance->parse_coordinate(instruction.get<std::string>(
+				"coordinate", "0,0,0,0"));
 		}
 	} catch (boost::property_tree::ptree_bad_path const &e) {
 		poe_log_fn(MSG_WARNING, "macro_passive_factory", __func__) <<
@@ -129,7 +151,7 @@ macro::Ptr macro_subsequence_factory::build_macro(
 				owner, queue, mtx, cv, ready);
 		auto instructions = root.get_child("instruction");
 		for (auto iter = instructions.begin(); iter != instructions.end(); ++iter) {
-			auto instruction = build_instruction(iter->second);
+			auto instruction = builder::build_instruction(iter->second);
 			if (nullptr == instruction) {
 				poe_log_fn(MSG_WARNING, "macro_subsequence_factory", __func__) <<
 					"Invalid instruction detected";

@@ -18,6 +18,12 @@ public:
 			std::shared_ptr<bool>) = 0;
 };
 
+class builder {
+public:
+	static int get_keyboard_event_definition(bool press);
+	static instruction::Ptr build_instruction(const boost::property_tree::ptree &instuction); 
+private:
+};
 
 class macro_passive_factory : public factory {
 public:
@@ -28,8 +34,6 @@ public:
 			std::shared_ptr<std::mutex>,
 			std::shared_ptr<std::condition_variable>,
 			std::shared_ptr<bool>) override;
-	virtual instruction::Ptr build_instruction(boost::property_tree::ptree &instuction); 
-	int get_keyboard_event_definition(bool press);
 	static macro_passive_factory *create_factory(void) {
 		return _get();
 	}

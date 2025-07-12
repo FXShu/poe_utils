@@ -20,11 +20,14 @@ DLFLAGS += -L $(TOP)/3rd_party/opencv-win32/lib -lopencv_imgcodecs4120 -lopencv_
 DLFLAGS += -L $(TOP)/3rd_party/tesseract-win32/lib -ltesseract
 DLFLAGS += -L $(TOP)/3rd_party/leptonica-win32/lib -lleptonica
 DLFLAGS += -L $(TOP)/3rd_party/opencv-win32/lib/opencv4/3rdparty -llibwebp -llibtiff -llibjpeg-turbo -llibpng -llibopenjp2 -lIlmImf
+DLFLAGS += -L $(TOP)/3rd_party/dpp-win32/lib -ldpp
+DLFLAGS += -L $(TOP)/3rd_party/openssl-win32/lib -lssl -lcrypto
 DLFLAGS += -fopenmp
 OPENCV_LIB_REF = -lopencv_imgcodecs4120 -lopencv_highgui4120 -lopencv_imgproc4120 -lopencv_core4120
 OPENCV_3RD_LIB_REF = -llibwebp -llibtiff -llibjpeg-turbo -llibpng -llibopenjp2 -lIlmImf -lz
 ifeq ($(PLATFORM), windows)
 	CFLAGS += -I $(TOP)/src/event/platform/windows
+	DLFLAGS += -lws2_32
 	SUFFIX = .exe
 endif
 

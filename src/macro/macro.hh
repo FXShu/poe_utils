@@ -25,6 +25,9 @@ enum macro_type {
 enum instruction_type {
 	INSTRUCTION_TYPE_KEYBOARD,
 	INSTRUCTION_TYPE_MOUSE,
+	INSTRUCTION_TYPE_CONDITION,
+	INSTRUCTION_TYPE_VARIABLE_OBTAIN,
+	INSTRUCTION_TYPE_DISCORD_NOTIFICATION,
 	INSTRUCTION_TYPE_MAXIMUM
 };
 
@@ -43,12 +46,20 @@ public :
 	void set_duration(int duration) {_duration = duration;}
 	virtual void descript(boost::property_tree::ptree *ptree) = 0;
 	virtual bool check_token(void);
+	bool parse_coordinate(const std::string &coordinate_str);
+	std::string get_coordinate(void);
 protected :
 	instruction(int duration, std::string token = "", float fitness = 0.0) :
 		_duration(duration), _token(token), _fitness(fitness) {}
 	int _duration;
 	std::string _token;
 	float _fitness;
+	struct {
+		int start_x;
+		int start_y;
+		int end_x;
+		int end_y;
+	} _coordinate = {0, 0, 0, 0};
 };
 
 enum mouse_button {
@@ -56,6 +67,75 @@ enum mouse_button {
 	MOUSE_BUTTON_RIGHT,
 	MOUSE_BUTTON_MIDDLE,
 	MOUSE_BUTTON_MAX,
+};
+
+class discord_notification_instruction : public instruction {
+public:
+	typedef std::shared_ptr<discord_notification_instruction> Ptr;
+	static Ptr createNew(std::string token, std::string channel, std::string message) {
+		Ptr instance = Ptr(new discord_notification_instruction(token, channel, message));
+		return instance;
+	}
+	int action(void *ctx) override;
+	void show(void) override;
+	void descript(boost::property_tree::ptree *ptree) override;
+protected:
+	discord_notification_instruction(std::string &token,
+		std::string &channel, std::string &message) :
+		instruction(0), _token(token), _channel(channel), _message(message) {}
+	std::string _token;
+	std::string _channel;
+	std::string _message;
+};
+
+enum variable_obtain_type {
+	VARIABLE_OBTAIN_OCR,
+	VARIABLE_OBTAIN_MAX
+};
+
+class variable_obtain_instruction : public instruction {
+public:
+	typedef std::shared_ptr<variable_obtain_instruction> Ptr;
+	static Ptr createNew(std::string variable, int duration, enum variable_obtain_type type) {
+		Ptr instance = Ptr(new variable_obtain_instruction(variable, duration, type));
+		return instance;
+	}
+	int action(void *ctx) override;
+	void show(void) override;
+	void descript(boost::property_tree::ptree *ptree) override;
+protected:
+	variable_obtain_instruction(std::string &variable, int duration,
+		enum variable_obtain_type type) :
+		instruction(duration), _variable(variable), _type(type) {}
+	std::string _variable;
+	enum variable_obtain_type _type;
+};
+
+enum condition_type : int {
+	IMAGE_RECOGNIZE = 0,
+	CONDITION_MAX,
+};
+
+class condition_instruction : public instruction {
+public:
+	typedef std::shared_ptr<condition_instruction> Ptr;
+	static Ptr createNew(const boost::property_tree::ptree &config);
+	int action(void *ctx) override;
+	void show(void) override;
+	void descript(boost::property_tree::ptree *ptree) override;
+	virtual ~condition_instruction() {}
+protected:
+	condition_instruction(void) : instruction(0) {}
+	//condition_instruction(int duration, std::string token, float fitness);
+	virtual bool generate_condition(const boost::property_tree::ptree &action);
+	virtual bool generate_action(std::vector<instruction::Ptr> &actions,
+		const boost::property_tree::ptree &config);
+	void platform_sleep(int milliseconds);
+	enum condition_type _type;
+	std::vector<instruction::Ptr> _success_actions;
+	std::vector<instruction::Ptr> _failure_actions;
+	const int _instruction_interval_ms = 200;
+	const int _repeated_wait_time_ms = 500;
 };
 
 class mouse_instruction : public instruction {
