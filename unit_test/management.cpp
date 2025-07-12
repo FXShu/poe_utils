@@ -16,7 +16,7 @@
 #define DEFAULT_FILE "flask_db.json"
 loglevel_e loglevel;
 
-std::string version("2.0.0");
+std::string version("2.1.0_alhpa");
 DWORD WINAPI send_terminal(void *id) {
 	Sleep(500);
 	PostThreadMessage((DWORD)id, POE_MESSAGE_TERMINAL, 0, 0);
