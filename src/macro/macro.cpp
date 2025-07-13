@@ -26,6 +26,14 @@
 
 static std::unordered_map<std::string, std::string> variables;
 
+static std::shared_ptr<dpp::cluster> bot;
+static std::once_flag bot_init_flag;
+
+void macro_module_deinit(void) {
+	if (bot)
+		bot.reset();
+}
+
 int discord_notification_instruction::action(void *ctx) {
 	std::regex re(R"(\$([a-zA-Z_][a-zA-Z0-9_]*))");
 	std::string result = _message;
@@ -48,20 +56,29 @@ int discord_notification_instruction::action(void *ctx) {
 	}
 	formatted.append(search_start, result.cend());
 
-	dpp::cluster bot(_token, dpp::i_default_intents | dpp::i_message_content);
-
-	bot.on_log(dpp::utility::cout_logger());
-
-	bot.on_ready([&bot, this, &formatted](const dpp::ready_t &event) {
-		bot.message_create(dpp::message(_channel, formatted));
+	std::call_once(bot_init_flag, [this] () {
+		bot = std::make_shared<dpp::cluster>(_token,
+			dpp::i_default_intents | dpp::i_message_content);
+		bot->on_log(dpp::utility::cout_logger());
 	});
 
-	bot.start(dpp::st_wait);
+	bot->message_create(dpp::message(_channel, formatted));
+
+	bot->start(dpp::st_return);
+	int wait_ms = 0;
+	dpp::discord_client *client = nullptr;
+	do {
+		std::this_thread::sleep_for(std::chrono::milliseconds(_bot_connection_check_ms));
+		wait_ms += _bot_connection_check_ms;
+		client = bot->get_shard(0);
+	} while ((nullptr == client || !client->is_connected()) &&
+		wait_ms < _bot_connection_waiting_endure);
+	bot->shutdown();
 	return 0;
 }
 
 void discord_notification_instruction::show(void) {
-	poe_object_log(MSG_INFO) << "send message" << _message << " to channel " << _channel <<
+	poe_object_log(MSG_INFO) << "send message" << " to channel " << _channel <<
 		" via token " << _token;
 }
 
@@ -120,24 +137,32 @@ int condition_instruction::action(void *ctx) {
 		poe_object_log_fn(MSG_DEBUG) << "execute success action";
 		for (auto &item : _success_actions) {
 			while (item->action(nullptr)) {
-				platform_sleep(_repeated_wait_time_ms);
+				std::this_thread::sleep_for(
+					std::chrono::milliseconds(_repeated_wait_time_ms));
 			}
-			if (item->duration() > 0)
-				platform_sleep(item->duration());
-			else
-				platform_sleep(_instruction_interval_ms);
+			if (item->duration() > 0) {
+				std::this_thread::sleep_for(
+					std::chrono::milliseconds(item->duration()));
+			} else {
+				std::this_thread::sleep_for(
+					std::chrono::milliseconds(_instruction_interval_ms));
+			}
 		}
 	} else {
 		/* failed */
 		poe_object_log_fn(MSG_DEBUG) << "execute failure action";
 		for (auto &item : _failure_actions) {
 			while (item->action(nullptr)) {
-				platform_sleep(_repeated_wait_time_ms);
+				std::this_thread::sleep_for(
+					std::chrono::milliseconds(_repeated_wait_time_ms));
 			}
-			if (item->duration() > 0)
-				platform_sleep(item->duration());
-			else
-				platform_sleep(_instruction_interval_ms);
+			if (item->duration() > 0) {
+				std::this_thread::sleep_for(
+					std::chrono::milliseconds(item->duration()));
+			} else {
+				std::this_thread::sleep_for(
+					std::chrono::milliseconds(_instruction_interval_ms));
+			}
 		}
 	}
 	return 0;

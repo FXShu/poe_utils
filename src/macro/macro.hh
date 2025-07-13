@@ -14,6 +14,8 @@
 #define MACRO_FLAGS_ACTIVE (1u << 1)
 #define MACRO_FLAGS_EXECUTE (1u << 2)
 
+void macro_module_deinit(void);
+
 enum macro_type {
 	MACRO_GENERIC,
 	MACRO_PASSIVE,
@@ -83,6 +85,8 @@ protected:
 	discord_notification_instruction(std::string &token,
 		std::string &channel, std::string &message) :
 		instruction(0), _token(token), _channel(channel), _message(message) {}
+	const int _bot_connection_check_ms = 1000;
+	const int _bot_connection_waiting_endure = 5000;
 	std::string _token;
 	std::string _channel;
 	std::string _message;
@@ -130,7 +134,6 @@ protected:
 	virtual bool generate_condition(const boost::property_tree::ptree &action);
 	virtual bool generate_action(std::vector<instruction::Ptr> &actions,
 		const boost::property_tree::ptree &config);
-	void platform_sleep(int milliseconds);
 	enum condition_type _type;
 	std::vector<instruction::Ptr> _success_actions;
 	std::vector<instruction::Ptr> _failure_actions;

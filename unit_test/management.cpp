@@ -47,6 +47,23 @@ void welcome(void) {
 	std::cout << "===============================================================" << std::endl;
 }
 
+#ifdef _WIN32
+BOOL WINAPI console_ctrl_handler(DWORD signal) {
+    if (signal == CTRL_C_EVENT) {
+        poe_log(MSG_INFO, "main")  << "[Ctrl+C received] Shutting down...";
+	macro_module_deinit();
+	exit(EXIT_SUCCESS);
+    }
+    return FALSE;
+}
+#endif
+
+void signinit() {
+#ifdef _WIN32
+	SetConsoleCtrlHandler(console_ctrl_handler, TRUE);
+#endif
+}
+
 int main(int argc, char **argv) {
 	try {
 		char c;
@@ -59,6 +76,7 @@ int main(int argc, char **argv) {
 		auto ready = std::make_shared<bool>(false);
 		informer::Ptr informer = informer::init(queue, mtx, cv, ready);
 		strcpy(file, DEFAULT_FILE);
+		signinit();
 		welcome();
 		for (;;) {
 			c = getopt(argc, argv, "d:f:hv");

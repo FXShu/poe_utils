@@ -65,7 +65,7 @@ image_recognize_test: image_recognize_test.o
 
 discord_bot: discord_bot.o
 	@printf '  %-10s  %s\n' "BUILD" $@
-	@$(CXX) $(CFLAGS) -o $@$(SUFFIX) $< -I /root/dpp-win32/include -L /root/dpp-win32/lib -ldpp -L/root/source/zlib_bin/lib -lz -L /root/openssl-win32/usr/local/lib -lssl -lcrypto -lws2_32 -lcrypt32 -lbcrypt -static-libgcc -static-libstdc++
+	@$(CXX) $(CFLAGS) -o $@$(SUFFIX) $< -I /root/dpp-win32/include -L$(TOP)/3rd_party/dpp-win32/lib  -ldpp -L/root/source/zlib_bin/lib -lz -L /root/openssl-win32/usr/local/lib -lssl -lcrypto -lws2_32 -lcrypt32 -lbcrypt -static-libgcc -static-libstdc++
 
 digit_recognize: digit_recognize.o
 	@printf '  %-10s  %s\n' "BUILD" $@

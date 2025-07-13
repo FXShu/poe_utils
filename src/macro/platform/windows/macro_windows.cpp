@@ -34,10 +34,6 @@ static DWORD WaitWithMessageLoop(DWORD milliseconds) {
     return 0;
 }
 
-void condition_instruction::platform_sleep(int milliseconds) {
-	WaitWithMessageLoop(static_cast<DWORD>(milliseconds));
-}
-
 void macro_passive::platform_sleep(int milliseconds) {
 	WaitWithMessageLoop(static_cast<DWORD>(milliseconds));
 }
